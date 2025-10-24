@@ -77,12 +77,10 @@ export const createUserBot = async (req: Request, res: Response) => {
     }
 
     // MONGO BACKUP: const user1 = await User.findOne({ _id: req.body.userId });
-    const user1 = await prisma.user.findUnique({ where: { id: req.body.userId } });
+    const user1 = await userRepository.findByTelegramId(BigInt(req.body.userId));
     if (user1) {
-      if (user1.id === req.body.userId) {
-        logger.warn(`User with id ${req.body.userId} is already exists`);
-        return res.status(200).json({})
-      }
+      logger.warn(`User with telegramId ${req.body.userId} already exists`);
+      return res.status(200).json(user1);
     }
 
     // Validate request body
@@ -100,12 +98,12 @@ export const createUserBot = async (req: Request, res: Response) => {
     // MONGO BACKUP: await user.save();
 
     const user = await userRepository.create({
-      id: req.body.userId,
+      telegramId: BigInt(req.body.userId),
       username: req.body.username,
       avatarUrl: req.body.avatarUrl,
     });
 
-    logger.info('User created successfully', { context: { userId: user.id } });
+    logger.info('User created successfully', { context: { userId: user.id, telegramId: user.telegramId } });
     res.status(201).json(user);
   } catch (error) {
     logger.error('Error creating user', { context: { error } });
@@ -116,10 +114,10 @@ export const createUserBot = async (req: Request, res: Response) => {
 // Get user by ID
 export const getUserByIdBot = async (req: Request, res: Response) => {
   try {
-    const userId = req.params.userId;
+    const telegramId = req.params.userId;
     const token = req.get('Token');
 
-    logger.info('Fetching user by ID', { context: { userId: userId } });
+    logger.info('Fetching user by Telegram ID', { context: { telegramId: telegramId } });
 
     if (token !== process.env.AUTH_BOT_TOKEN) {
       logger.warn('Invalid request token', { context: { token: token } });
@@ -127,10 +125,10 @@ export const getUserByIdBot = async (req: Request, res: Response) => {
     }
 
     // MONGO BACKUP: const user = await User.findById(userId);
-    const user = await userRepository.findById(parseInt(userId));
+    const user = await userRepository.findByTelegramId(BigInt(telegramId));
 
     if (!user) {
-      logger.warn('User not found', { context: { userId: userId } });
+      logger.warn('User not found', { context: { telegramId: telegramId } });
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -166,11 +164,11 @@ export const getUserById = async (req: Request, res: Response) => {
 
 
 export const updateLanguageBot = async (req: Request, res: Response) => {
-  const userId = req.params.userId;
+  const telegramId = req.params.userId;
   const language = req.body.language;
   const token = req.get('Token');
 
-  logger.info('Updating user language by ID', { context: { userId: userId } });
+  logger.info('Updating user language by Telegram ID', { context: { telegramId: telegramId } });
 
   if (token !== process.env.AUTH_BOT_TOKEN) {
     logger.warn('Invalid request token', { context: { token: token } });
@@ -178,27 +176,27 @@ export const updateLanguageBot = async (req: Request, res: Response) => {
   }
 
   // MONGO BACKUP: const user = await User.findById(userId);
-  const user = await userRepository.findById(parseInt(userId));
+  const user = await userRepository.findByTelegramId(BigInt(telegramId));
 
   if (!user) {
-    logger.warn('User not found', { context: { userId: userId } });
+    logger.warn('User not found', { context: { telegramId: telegramId } });
     return res.status(404).json({ error: 'User not found' });
   }
 
   // MONGO BACKUP: user.language = language;
   // MONGO BACKUP: await user.save();
-  const updatedUser = await userRepository.update(parseInt(userId), { language });
+  const updatedUser = await userRepository.update(user.id, { language });
 
   logger.info('User language updated successfully', { context: { userId: updatedUser.id } });
   res.json(updatedUser);
 }
 
 export const updateSubscriptionBot = async (req: Request, res: Response) => {
-  const userId = req.params.userId;
+  const telegramId = req.params.userId;
   const isSubscribed = req.body.isSubscribed;
   const token = req.get('Token');
 
-  logger.info('Updating user subscription by ID', { context: { userId: userId } });
+  logger.info('Updating user subscription by Telegram ID', { context: { telegramId: telegramId } });
 
   if (token !== process.env.AUTH_BOT_TOKEN) {
     logger.warn('Invalid request token', { context: { token: token } });
@@ -206,16 +204,16 @@ export const updateSubscriptionBot = async (req: Request, res: Response) => {
   }
 
   // MONGO BACKUP: const user = await User.findById(userId);
-  const user = await userRepository.findById(parseInt(userId));
+  const user = await userRepository.findByTelegramId(BigInt(telegramId));
 
   if (!user) {
-    logger.warn('User not found', { context: { userId: userId } });
+    logger.warn('User not found', { context: { telegramId: telegramId } });
     return res.status(404).json({ error: 'User not found' });
   }
 
   // MONGO BACKUP: user.isSubscribed = isSubscribed;
   // MONGO BACKUP: await user.save();
-  const updatedUser = await userRepository.updateSubscriptionStatus(parseInt(userId), isSubscribed);
+  const updatedUser = await userRepository.updateSubscriptionStatus(user.id, isSubscribed);
 
   logger.info('User isSubscribed updated successfully', { context: { userId: updatedUser.id } });
   res.json(updatedUser);
