@@ -6,10 +6,10 @@ import * as process from "node:process";
 import { isValid } from '@telegram-apps/init-data-node';
 
 dotenv.config();
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN || '';
 if (!TELEGRAM_BOT_TOKEN) {
-  logger.error('TELEGRAM_BOT_TOKEN is not defined in the environment variables');
-  throw new Error('TELEGRAM_BOT_TOKEN is not defined in the environment variables');
+  logger.error('BOT_TOKEN is not defined in the environment variables');
+  throw new Error('BOT_TOKEN is not defined in the environment variables');
 }
 
 interface TelegramUser {
