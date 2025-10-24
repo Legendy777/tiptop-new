@@ -3,6 +3,7 @@ import { InlineKeyboardMarkup, ReplyKeyboardMarkup } from 'telegraf/typings/core
 import { localization } from '../config/localization';
 import {Game} from "./game.service";
 import {User} from "./user.service";
+import { configService } from '../config/config.service';
 
 /**
  * Сервис для работы с сообщениями и клавиатурами
@@ -37,11 +38,12 @@ export class MessageService {
    */
   createPersistentKeyboard(language?: string): ReplyKeyboardMarkup {
     const loc = this.getLocalization(language);
+    const webAppUrl = configService.getString('WEB_APP_URL', 'https://mobile-games.online/');
     
     return {
       keyboard: [
         [{ text: loc.buttons.menu }],
-        [{ text: loc.buttons.support, web_app: { url: 'https://mobile-games.online/' } }]
+        [{ text: loc.buttons.support, web_app: { url: webAppUrl } }]
       ],
       resize_keyboard: true,
       is_persistent: true
@@ -57,7 +59,7 @@ export class MessageService {
     // Определяем URL для магазинов
     const googlePlayUrl = game?.googlePlayUrl || 'https://play.google.com';
     const appStoreUrl = game?.appStoreUrl || 'https://apps.apple.com';
-    const webAppUrl = 'https://mobile-games.online/';
+    const webAppUrl = configService.getString('WEB_APP_URL', 'https://mobile-games.online/');
 
     // Динамическая кнопка Play/Stop
     const playStopButton = isUserPlaying

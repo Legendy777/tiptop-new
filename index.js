@@ -55,8 +55,14 @@ if (!process.env.CLIENT_URL) {
   const replOwner = process.env.REPL_OWNER || 'user';
   process.env.CLIENT_URL = `https://${replSlug}.${replOwner}.repl.co`;
   console.log(`ℹ️  CLIENT_URL установлен автоматически: ${process.env.CLIENT_URL}`);
-  console.log('');
 }
+
+// Устанавливаем WEB_APP_URL для Telegram бота (тот же URL что и CLIENT_URL)
+if (!process.env.WEB_APP_URL) {
+  process.env.WEB_APP_URL = process.env.CLIENT_URL;
+  console.log(`ℹ️  WEB_APP_URL установлен автоматически: ${process.env.WEB_APP_URL}`);
+}
+console.log('');
 
 console.log('✅ Все переменные окружения настроены');
 console.log('');

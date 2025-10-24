@@ -74,8 +74,9 @@ bot.on('text', async (ctx) => {
       return;
     }
 
+    const webAppUrl = configService.getString('WEB_APP_URL', WEB_APP_URL);
     ctx.reply(l.buttons.reply, Markup.inlineKeyboard([
-      Markup.button.webApp(l.buttons.supportChat, 'https://mobile-games.online/chat')
+      Markup.button.webApp(l.buttons.supportChat, webAppUrl + '/chat')
     ]));
     
   } catch (error) {
@@ -143,7 +144,7 @@ bot.on('inline_query', async (ctx) => {
             },
           ],
           [
-            { text: l.inline.store, url: 'https://t.me/TipTop999_bot/Games' },
+            { text: l.inline.store, url: `https://t.me/${configService.getString('BOT_USERNAME', 'TipTop999_bot')}/Games` },
             { text: l.inline.bot, url: BOT_URL },
           ],
         ],
