@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import Referral from '../models/Referral';
+// MONGO BACKUP: import Referral from '../models/Referral';
 import { logger } from '../config/logger';
-import User from '../models/User';
+// MONGO BACKUP: import User from '../models/User';
+import { prisma } from '../db/client';
+import { referralRepository } from '../db';
 
 // create new referral by refer via bot
 export const createReferralByRefer = async (req: Request, res: Response) => {
@@ -20,24 +22,25 @@ export const createReferralByRefer = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    // check user existence
-    const user = await User.findOne({ _id: req.body.userId });
+    // MONGO BACKUP: const user = await User.findOne({ _id: req.body.userId });
+    const user = await prisma.user.findUnique({ where: { id: req.body.userId } });
     if (user) {
-      if (user._id === req.body.userId) {
+      if (user.id === req.body.userId) {
         logger.warn(`User with id ${req.body.userId} is already exists`);
         return res.status(409).json({})
       }
     }
 
-    const newReferral = {
-      userId: req.body.userId,
-      referId: req.body.referId
-    };
+    // MONGO BACKUP: const newReferral = {
+    // MONGO BACKUP:   userId: req.body.userId,
+    // MONGO BACKUP:   referId: req.body.referId
+    // MONGO BACKUP: };
+    // MONGO BACKUP: const referral = new Referral(newReferral);
+    // MONGO BACKUP: await referral.save();
 
-    const referral = new Referral(newReferral);
-    await referral.save();
+    const referral = await referralRepository.createReferral(req.body.userId, req.body.referId);
 
-    logger.info('Referral created successfully', { context: { userId: newReferral.userId } });
+    logger.info('Referral created successfully', { context: { userId: referral.userId } });
     res.status(201).json(referral);
   } catch (error) {
     logger.error('Error creating referral', { context: { error } });
@@ -49,7 +52,8 @@ export const createReferralByRefer = async (req: Request, res: Response) => {
 export const getReferralCountByReferId = async (req: Request, res: Response) => {
   try {
     const referId = req.telegramUser?.id;
-    const count = await Referral.countDocuments({ referId });
+    // MONGO BACKUP: const count = await Referral.countDocuments({ referId });
+    const count = await referralRepository.countByReferrerId(referId!);
     logger.info('Referral count fetched successfully', { context: { referId, count } });
     res.json(count); // Return as a plain number
   } catch (error) {

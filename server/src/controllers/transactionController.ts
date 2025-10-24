@@ -1,20 +1,27 @@
 import { Request, Response } from 'express';
-import Transaction from "../models/Transaction";
-import User from '../models/User';
+// MONGO BACKUP: import Transaction from "../models/Transaction";
+// MONGO BACKUP: import User from '../models/User';
+import { prisma } from '../db/client';
+import { transactionRepository } from '../db';
 
 export const getTransactionsByRefer = async (req: Request, res: Response) => {
     try {
         const userId = req.telegramUser?.id;
 
-        const transactions = await Transaction.find({ referId: Number(userId) });
+        // MONGO BACKUP: const transactions = await Transaction.find({ referId: Number(userId) });
+        const transactions = await transactionRepository.findByReferrerId(Number(userId));
 
-        const userIds = transactions.map(tx => tx.userId);
-        const users = await User.find({ _id: { $in: userIds } }).lean();
-        const userMap = new Map(users.map(u => [u._id.toString(), u.username]));
+        // MONGO BACKUP: const userIds = transactions.map(tx => tx.userId);
+        // MONGO BACKUP: const users = await User.find({ _id: { $in: userIds } }).lean();
+        // MONGO BACKUP: const userMap = new Map(users.map(u => [u._id.toString(), u.username]));
+        // MONGO BACKUP: const transactionsWithUsername = transactions.map(tx => ({
+        // MONGO BACKUP:     ...tx.toObject(),
+        // MONGO BACKUP:     username: userMap.get(tx.userId.toString()) || null,
+        // MONGO BACKUP: }));
 
         const transactionsWithUsername = transactions.map(tx => ({
-            ...tx.toObject(),
-            username: userMap.get(tx.userId.toString()) || null,
+            ...tx,
+            username: tx.user?.username || null,
         }));
 
         res.json(transactionsWithUsername);

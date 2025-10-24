@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { CryptoPay } from '@foile/crypto-pay-api';
 import { logger } from '../config/logger';
-import Payment from '../models/Payment';
-import Game from '../models/Game';
-import Offer from '../models/Offer';
+// MONGO BACKUP: import Payment from '../models/Payment';
+// MONGO BACKUP: import Game from '../models/Game';
+// MONGO BACKUP: import Offer from '../models/Offer';
 import axios from "axios";
+import { prisma } from '../db/client';
+import { paymentRepository } from '../db';
 
 const cryptoPay = new CryptoPay(process.env.CRYPTOPAY_API_KEY!);
 
@@ -29,9 +31,14 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid userId" });
     }
 
-    const game = await Game.findOne({ title: gameName }).select('_id').lean().exec();
+    // MONGO BACKUP: const game = await Game.findOne({ title: gameName }).select('_id').lean().exec();
+    // MONGO BACKUP: const gameIdValue = game?._id;
+    const game = await prisma.game.findFirst({
+      where: { title: gameName },
+      select: { id: true }
+    });
+    const gameIdValue = game?.id;
     
-    const gameIdValue = game?._id;
     if (!gameIdValue) {
       logger.error("Validation data for new crypto invoice failed: Game not found", {
         context: { userId, gameName, offerName, price },
@@ -39,8 +46,17 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Game not found" });
     }
 
-    const offer = await Offer.findOne({ title: offerName, gameId: gameIdValue }).select('_id').lean().exec();
-    const offerIdValue = offer?._id;
+    // MONGO BACKUP: const offer = await Offer.findOne({ title: offerName, gameId: gameIdValue }).select('_id').lean().exec();
+    // MONGO BACKUP: const offerIdValue = offer?._id;
+    const offer = await prisma.offer.findFirst({
+      where: { 
+        title: offerName, 
+        gameId: gameIdValue 
+      },
+      select: { id: true }
+    });
+    const offerIdValue = offer?.id;
+    
     if (!offerIdValue) {
       logger.error("Validation data for new crypto invoice failed: Offer not found", {
         context: { userId, gameName, offerName, price },
@@ -75,21 +91,28 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
       context: { userId, invoiceId: invoice.invoice_id, orderId: null, offerId: offerIdValue },
     });
 
-    // Create a new payment record in the database
-    const payment = new Payment({
+    // MONGO BACKUP: const payment = new Payment({
+    // MONGO BACKUP:   externalId: invoice.invoice_id,
+    // MONGO BACKUP:   userId: userId,
+    // MONGO BACKUP:   orderId: null,
+    // MONGO BACKUP:   offerId: offerIdValue,
+    // MONGO BACKUP:   amountToPay: amountToPay,
+    // MONGO BACKUP:   currency: "USDT",
+    // MONGO BACKUP:   status: "pending",
+    // MONGO BACKUP: });
+    // MONGO BACKUP: await payment.save();
+
+    const payment = await paymentRepository.create({
       externalId: invoice.invoice_id,
-      userId: userId,
-      orderId: null,
-      offerId: offerIdValue,
+      user: { connect: { id: userId } },
+      offer: { connect: { id: offerIdValue } },
       amountToPay: amountToPay,
       currency: "USDT",
       status: "pending",
     });
 
-    await payment.save();
-
     logger.info("Payment record saved successfully", {
-      context: { userId, paymentId: payment._id, invoiceId: invoice.invoice_id },
+      context: { userId, paymentId: payment.id, invoiceId: invoice.invoice_id },
     });
 
     // Respond with the invoice details
@@ -120,7 +143,8 @@ export const getAllByMe = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid userId" });
     }
 
-    const payments = await Payment.find({ userId }).exec();
+    // MONGO BACKUP: const payments = await Payment.find({ userId }).exec();
+    const payments = await paymentRepository.findByUserId(userId);
 
     if (!payments || payments.length === 0) {
       logger.info("No payments found for the given userId", {
@@ -159,9 +183,14 @@ export const createRubInvoice = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid userId" });
     }
 
-    const game = await Game.findOne({ title: gameName }).select('_id').lean().exec();
+    // MONGO BACKUP: const game = await Game.findOne({ title: gameName }).select('_id').lean().exec();
+    // MONGO BACKUP: const gameIdValue = game?._id;
+    const game = await prisma.game.findFirst({
+      where: { title: gameName },
+      select: { id: true }
+    });
+    const gameIdValue = game?.id;
 
-    const gameIdValue = game?._id;
     if (!gameIdValue) {
       logger.error("Validation data for new rub invoice failed: Game not found", {
         context: { userId, gameName, offerName, price },
@@ -169,8 +198,17 @@ export const createRubInvoice = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Game not found" });
     }
 
-    const offer = await Offer.findOne({ title: offerName, gameId: gameIdValue }).select('_id').lean().exec();
-    const offerIdValue = offer?._id;
+    // MONGO BACKUP: const offer = await Offer.findOne({ title: offerName, gameId: gameIdValue }).select('_id').lean().exec();
+    // MONGO BACKUP: const offerIdValue = offer?._id;
+    const offer = await prisma.offer.findFirst({
+      where: { 
+        title: offerName, 
+        gameId: gameIdValue 
+      },
+      select: { id: true }
+    });
+    const offerIdValue = offer?.id;
+    
     if (!offerIdValue) {
       logger.error("Validation data for new rub invoice failed: Offer not found", {
         context: { userId, gameName, offerName, price },
@@ -212,21 +250,28 @@ export const createRubInvoice = async (req: Request, res: Response) => {
       context: { userId, invoiceId: invoice.order_id, orderId: null, offerId: offerIdValue },
     });
 
-    // Create a new payment record in the database
-    const payment = new Payment({
+    // MONGO BACKUP: const payment = new Payment({
+    // MONGO BACKUP:   externalId: invoice.order_id,
+    // MONGO BACKUP:   userId: userId,
+    // MONGO BACKUP:   orderId: null,
+    // MONGO BACKUP:   offerId: offerIdValue,
+    // MONGO BACKUP:   amountToPay: amountToPay,
+    // MONGO BACKUP:   currency: "RUB",
+    // MONGO BACKUP:   status: "pending",
+    // MONGO BACKUP: });
+    // MONGO BACKUP: await payment.save();
+
+    const payment = await paymentRepository.create({
       externalId: invoice.order_id,
-      userId: userId,
-      orderId: null,
-      offerId: offerIdValue,
+      user: { connect: { id: userId } },
+      offer: { connect: { id: offerIdValue } },
       amountToPay: amountToPay,
       currency: "RUB",
       status: "pending",
     });
 
-    await payment.save();
-
     logger.info("Payment record saved successfully", {
-      context: { userId, paymentId: payment._id, invoiceId: invoice.order_id },
+      context: { userId, paymentId: payment.id, invoiceId: invoice.order_id },
     });
 
     // Respond with the invoice details

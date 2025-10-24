@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
-import User from '../models/User';
+// MONGO BACKUP: import User from '../models/User';
 import { logger } from '../config/logger';
 import process from "node:process";
 import console from "node:console";
+import { prisma } from '../db/client';
+import { userRepository } from '../db';
 
 // -> User
 
@@ -26,27 +28,31 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid request tg data' });
     }
 
-    // check user existence
-    const user1 = await User.findOne({ _id: userId });
+    // MONGO BACKUP: const user1 = await User.findOne({ _id: userId });
+    const user1 = await prisma.user.findUnique({ where: { id: userId } });
     if (user1) {
-      if (user1._id === userId) {
+      if (user1.id === userId) {
         logger.warn(`User with id ${userId} is already exists`);
         return res.status(200).json({})
       }
     }
 
-    const newUser = {
-      _id: userId,
+    // MONGO BACKUP: const newUser = {
+    // MONGO BACKUP:   _id: userId,
+    // MONGO BACKUP:   username: username,
+    // MONGO BACKUP:   avatarUrl: avatarUrl,
+    // MONGO BACKUP: };
+    // MONGO BACKUP: logger.info('New user data: ', { context: { user: newUser } });
+    // MONGO BACKUP: const user = new User(newUser);
+    // MONGO BACKUP: await user.save();
+
+    const user = await userRepository.create({
+      id: userId,
       username: username,
-      avatarUrl: avatarUrl,
-    };
+      avatarUrl: avatarUrl || null,
+    });
 
-    logger.info('New user data: ', { context: { user: newUser } });
-
-    const user = new User(newUser);
-    await user.save();
-
-    logger.info('User created successfully', { context: { userId: user._id } });
+    logger.info('User created successfully', { context: { userId: user.id } });
     res.status(201).json(user);
   } catch (error) {
     logger.error('Error creating user', { context: { error } });
@@ -70,10 +76,10 @@ export const createUserBot = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    // check user existence
-    const user1 = await User.findOne({ _id: req.body.userId });
+    // MONGO BACKUP: const user1 = await User.findOne({ _id: req.body.userId });
+    const user1 = await prisma.user.findUnique({ where: { id: req.body.userId } });
     if (user1) {
-      if (user1._id === req.body.userId) {
+      if (user1.id === req.body.userId) {
         logger.warn(`User with id ${req.body.userId} is already exists`);
         return res.status(200).json({})
       }
@@ -85,16 +91,21 @@ export const createUserBot = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid request body' });
     }
 
-    const newUser = {
-      _id: req.body.userId,
+    // MONGO BACKUP: const newUser = {
+    // MONGO BACKUP:   _id: req.body.userId,
+    // MONGO BACKUP:   username: req.body.username,
+    // MONGO BACKUP:   avatarUrl: req.body.avatarUrl,
+    // MONGO BACKUP: };
+    // MONGO BACKUP: const user = new User(newUser);
+    // MONGO BACKUP: await user.save();
+
+    const user = await userRepository.create({
+      id: req.body.userId,
       username: req.body.username,
       avatarUrl: req.body.avatarUrl,
-    };
+    });
 
-    const user = new User(newUser);
-    await user.save();
-
-    logger.info('User created successfully', { context: { userId: user._id } });
+    logger.info('User created successfully', { context: { userId: user.id } });
     res.status(201).json(user);
   } catch (error) {
     logger.error('Error creating user', { context: { error } });
@@ -115,14 +126,15 @@ export const getUserByIdBot = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid request token' });
     }
 
-    const user = await User.findById(userId);
+    // MONGO BACKUP: const user = await User.findById(userId);
+    const user = await userRepository.findById(parseInt(userId));
 
     if (!user) {
       logger.warn('User not found', { context: { userId: userId } });
       return res.status(404).json({ error: 'User not found' });
     }
 
-    logger.info('User fetched successfully', { context: { userId: user._id } });
+    logger.info('User fetched successfully', { context: { userId: user.id } });
     res.json(user);
   } catch (error) {
     logger.error('Error fetching user', { context: { error } });
@@ -136,14 +148,15 @@ export const getUserById = async (req: Request, res: Response) => {
 
     logger.info('Fetching user by ID', { context: { userId: userId } });
 
-    const user = await User.findById(userId);
+    // MONGO BACKUP: const user = await User.findById(userId);
+    const user = await userRepository.findById(userId!);
 
     if (!user) {
       logger.warn('User not found', { context: { userId: userId } });
       return res.status(404).json({ error: 'User not found' });
     }
 
-    logger.info('User fetched successfully', { context: { userId: user._id } });
+    logger.info('User fetched successfully', { context: { userId: user.id } });
     res.json(user);
   } catch (error) {
     logger.error('Error fetching user', { context: { error } });
@@ -164,18 +177,20 @@ export const updateLanguageBot = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid request token' });
   }
 
-  const user = await User.findById(userId);
+  // MONGO BACKUP: const user = await User.findById(userId);
+  const user = await userRepository.findById(parseInt(userId));
 
   if (!user) {
     logger.warn('User not found', { context: { userId: userId } });
     return res.status(404).json({ error: 'User not found' });
   }
 
-  user.language = language;
-  await user.save();
+  // MONGO BACKUP: user.language = language;
+  // MONGO BACKUP: await user.save();
+  const updatedUser = await userRepository.update(parseInt(userId), { language });
 
-  logger.info('User language updated successfully', { context: { userId: user._id } });
-  res.json(user);
+  logger.info('User language updated successfully', { context: { userId: updatedUser.id } });
+  res.json(updatedUser);
 }
 
 export const updateSubscriptionBot = async (req: Request, res: Response) => {
@@ -190,18 +205,20 @@ export const updateSubscriptionBot = async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid request token' });
   }
 
-  const user = await User.findById(userId);
+  // MONGO BACKUP: const user = await User.findById(userId);
+  const user = await userRepository.findById(parseInt(userId));
 
   if (!user) {
     logger.warn('User not found', { context: { userId: userId } });
     return res.status(404).json({ error: 'User not found' });
   }
 
-  user.isSubscribed = isSubscribed;
-  await user.save();
+  // MONGO BACKUP: user.isSubscribed = isSubscribed;
+  // MONGO BACKUP: await user.save();
+  const updatedUser = await userRepository.updateSubscriptionStatus(parseInt(userId), isSubscribed);
 
-  logger.info('User isSubscribed updated successfully', { context: { userId: user._id } });
-  res.json(user);
+  logger.info('User isSubscribed updated successfully', { context: { userId: updatedUser.id } });
+  res.json(updatedUser);
 }
 
 export const updateLanguage = async (req: Request, res: Response) => {
@@ -210,18 +227,20 @@ export const updateLanguage = async (req: Request, res: Response) => {
 
   logger.info('Updating user language by ID', { context: { userId: userId } });
 
-  const user = await User.findById(userId);
+  // MONGO BACKUP: const user = await User.findById(userId);
+  const user = await userRepository.findById(userId!);
 
   if (!user) {
     logger.warn('User not found', { context: { userId: userId } });
     return res.status(404).json({ error: 'User not found' });
   }
 
-  user.language = language;
-  await user.save();
+  // MONGO BACKUP: user.language = language;
+  // MONGO BACKUP: await user.save();
+  const updatedUser = await userRepository.update(userId!, { language });
 
-  logger.info('User language updated successfully', { context: { userId: user._id } });
-  res.json(user);
+  logger.info('User language updated successfully', { context: { userId: updatedUser.id } });
+  res.json(updatedUser);
 }
 
 // -> Admin

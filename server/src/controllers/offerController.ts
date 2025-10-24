@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import GameOffer from '../models/Offer';
+// MONGO BACKUP: import GameOffer from '../models/Offer';
 import { logger } from '../config/logger';
+import { prisma } from '../db/client';
+import { offerRepository } from '../db';
 
 // -> User
 
@@ -12,12 +14,22 @@ export const getOffersByGameId = async (req: Request, res: Response): Promise<vo
 
     logger.info('Fetching game offers by game ID', { context: { gameId, isEnabled } });
 
-    const filter: any = { gameId: gameId };
+    // MONGO BACKUP: const filter: any = { gameId: gameId };
+    // MONGO BACKUP: if (isEnabled !== undefined) {
+    // MONGO BACKUP:   filter.isEnabled = isEnabled === 'true';
+    // MONGO BACKUP: }
+    // MONGO BACKUP: const gameOffers = await GameOffer.find(filter).sort({ price: 1 });
+
+    const where: any = { gameId: parseInt(gameId) };
     if (isEnabled !== undefined) {
-      filter.isEnabled = isEnabled === 'true';
+      where.isEnabled = isEnabled === 'true';
     }
 
-    const gameOffers = await GameOffer.find(filter).sort({ price: 1 });
+    const gameOffers = await prisma.offer.findMany({
+      where,
+      orderBy: { priceRUB: 'asc' },
+      include: { game: true }
+    });
 
     logger.info('Game offers fetched successfully by game ID', {
       context: { gameId, count: gameOffers.length },
@@ -35,7 +47,8 @@ export const getOfferById = async (req: Request, res: Response): Promise<void> =
     const { id } = req.params;
     logger.info('Fetching game offer by ID', { context: { offerId: id } });
 
-    const gameOffer = await GameOffer.findById(id);
+    // MONGO BACKUP: const gameOffer = await GameOffer.findById(id);
+    const gameOffer = await offerRepository.findById(parseInt(id));
 
     if (!gameOffer) {
       logger.warn('Game offer not found', { context: { offerId: id } });
@@ -43,7 +56,7 @@ export const getOfferById = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    logger.info('Game offer fetched successfully', { context: { offerId: gameOffer._id } });
+    logger.info('Game offer fetched successfully', { context: { offerId: gameOffer.id } });
     res.status(200).json(gameOffer);
   } catch (error) {
     logger.error(`Error fetching game offer with ID ${req.params.id}`, { context: { error } });
@@ -65,7 +78,14 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const existingGameOffer = await GameOffer.findOne({ gameId, title });
+    // MONGO BACKUP: const existingGameOffer = await GameOffer.findOne({ gameId, title });
+    const existingGameOffer = await prisma.offer.findFirst({
+      where: {
+        gameId: parseInt(gameId),
+        title
+      }
+    });
+
     if (existingGameOffer) {
       logger.warn('Game offer already exists', { context: { gameId, title } });
       res.status(400).json({ message: 'Game offer already exists' });
@@ -83,9 +103,19 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ message: 'Invalid price type' });
     }
 
-    const gameOffer = new GameOffer({
-      _id,
-      gameId,
+    // MONGO BACKUP: const gameOffer = new GameOffer({
+    // MONGO BACKUP:   _id,
+    // MONGO BACKUP:   gameId,
+    // MONGO BACKUP:   title,
+    // MONGO BACKUP:   imageUrl,
+    // MONGO BACKUP:   priceRUB,
+    // MONGO BACKUP:   priceUSDT,
+    // MONGO BACKUP:   isEnabled: isEnabled !== undefined ? isEnabled : true,
+    // MONGO BACKUP: });
+    // MONGO BACKUP: await gameOffer.save();
+
+    const gameOffer = await offerRepository.create({
+      game: { connect: { id: parseInt(gameId) } },
       title,
       imageUrl,
       priceRUB,
@@ -93,9 +123,7 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
       isEnabled: isEnabled !== undefined ? isEnabled : true,
     });
 
-    await gameOffer.save();
-
-    logger.info('Game offer created successfully', { context: { offerId: gameOffer._id } });
+    logger.info('Game offer created successfully', { context: { offerId: gameOffer.id } });
     res.status(201).json(gameOffer);
   } catch (error) {
     logger.error('Error creating game offer', { context: { error } });
@@ -109,7 +137,8 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
     logger.info('Updating game offer', { context: { offerId: id, body: req.body } });
 
-    const gameOffer = await GameOffer.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    // MONGO BACKUP: const gameOffer = await GameOffer.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
+    const gameOffer = await offerRepository.update(parseInt(id), req.body);
 
     if (!gameOffer) {
       logger.warn('Game offer not found for update', { context: { offerId: id } });
@@ -117,7 +146,7 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    logger.info('Game offer updated successfully', { context: { offerId: gameOffer._id } });
+    logger.info('Game offer updated successfully', { context: { offerId: gameOffer.id } });
     res.status(200).json(gameOffer);
   } catch (error) {
     logger.error(`Error updating game offer with ID ${req.params.id}`, { context: { error } });
@@ -131,7 +160,8 @@ export const deleteOffer = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
     logger.info('Deleting game offer', { context: { offerId: id } });
 
-    const gameOffer = await GameOffer.findByIdAndDelete(id);
+    // MONGO BACKUP: const gameOffer = await GameOffer.findByIdAndDelete(id);
+    const gameOffer = await offerRepository.delete(parseInt(id));
 
     if (!gameOffer) {
       logger.warn('Game offer not found for deletion', { context: { offerId: id } });
@@ -139,7 +169,7 @@ export const deleteOffer = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    logger.info('Game offer deleted successfully', { context: { offerId: gameOffer._id } });
+    logger.info('Game offer deleted successfully', { context: { offerId: gameOffer.id } });
     res.status(200).json({ message: 'Game offer deleted successfully' });
   } catch (error) {
     logger.error(`Error deleting game offer with ID ${req.params.id}`, { context: { error } });

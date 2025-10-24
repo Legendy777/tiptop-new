@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import Review from '../models/Review';
+// MONGO BACKUP: import Review from '../models/Review';
 import { logger } from '../config/logger';
-import Order from "../models/Order";
+// MONGO BACKUP: import Order from "../models/Order";
+import { prisma } from '../db/client';
+import { reviewRepository, orderRepository } from '../db';
 
 export const createReview = async (req: Request, res: Response) => {
   try {
@@ -9,26 +11,38 @@ export const createReview = async (req: Request, res: Response) => {
     const userId = req.telegramUser?.id;
     const username = req.telegramUser?.username;
 
-    const payload = {
-      userId,
-      orderId,
-      username,
-      rating,
-      comment
-    }
-
-    const order = await Order.findById(orderId);
+    // MONGO BACKUP: const order = await Order.findById(orderId);
+    const order = await orderRepository.findById(parseInt(orderId));
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     if (order.userId !== userId) return res.status(400).json({ message: 'Order does not belong to user' });
 
     if (rating < 1 || rating > 5) return res.status(400).json({ message: 'Rating must be between 1 and 5' });
 
-    const reviewCheck = await Review.findOne({ orderId });
+    // MONGO BACKUP: const reviewCheck = await Review.findOne({ orderId });
+    const reviewCheck = await prisma.review.findUnique({
+      where: { orderId: parseInt(orderId) }
+    });
     if (reviewCheck) return res.status(400).json({ message: 'Review already exists' });
 
-    const review = new Review(payload);
-    await review.save();
+    // MONGO BACKUP: const payload = {
+    // MONGO BACKUP:   userId,
+    // MONGO BACKUP:   orderId,
+    // MONGO BACKUP:   username,
+    // MONGO BACKUP:   rating,
+    // MONGO BACKUP:   comment
+    // MONGO BACKUP: }
+    // MONGO BACKUP: const review = new Review(payload);
+    // MONGO BACKUP: await review.save();
+    
+    const review = await reviewRepository.create({
+      user: { connect: { id: userId! } },
+      order: { connect: { id: parseInt(orderId) } },
+      username: username || '',
+      rating,
+      comment
+    });
+
     res.status(201).json(review);
   } catch (error) {
     logger.error(`Error creating review: ${error}`);
@@ -38,7 +52,8 @@ export const createReview = async (req: Request, res: Response) => {
 
 export const getReviews = async (req: Request, res: Response) => {
   try {
-    const reviews = await Review.find().sort({ createdAt: -1 });
+    // MONGO BACKUP: const reviews = await Review.find().sort({ createdAt: -1 });
+    const reviews = await reviewRepository.findAll();
     
     // Format dates
     const formattedReviews = reviews.map(review => {
@@ -53,7 +68,7 @@ export const getReviews = async (req: Request, res: Response) => {
       const formattedDate = `${day}.${month}.${year} - ${hours}:${minutes}:${seconds}`;
       
       return {
-        ...review.toObject(),
+        ...review,
         created_at: formattedDate
       };
     });

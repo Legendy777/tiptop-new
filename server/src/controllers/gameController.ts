@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
-import Game from '../models/Game';
+// MONGO BACKUP: import Game from '../models/Game';
 import { logger } from '../config/logger';
+import { prisma } from '../db/client';
+import { gameRepository } from '../db';
 
 // -> User
 
@@ -8,7 +10,8 @@ import { logger } from '../config/logger';
 export const getGames = async (req: Request, res: Response) => {
   try {
     logger.info('Fetching all games');
-    const games = await Game.find();
+    // MONGO BACKUP: const games = await Game.find();
+    const games = await gameRepository.findAll();
     logger.info('Games fetched successfully', { context: { count: games.length } });
     res.json(games);
   } catch (error) {
@@ -21,7 +24,12 @@ export const getGames = async (req: Request, res: Response) => {
 export const getActiveGames = async (req: Request, res: Response) => {
   try {
     logger.info('Fetching active games');
-    const games = await Game.find({ isActive: true });
+    // MONGO BACKUP: const games = await Game.find({ isActive: true });
+    const games = await prisma.game.findMany({
+      where: { isEnabled: true, isActual: true },
+      include: { offers: true },
+      orderBy: { createdAt: 'desc' }
+    });
     logger.info('Active games fetched', { context: { count: games.length } });
     res.json(games);
   } catch (error) {
@@ -34,7 +42,8 @@ export const getActiveGames = async (req: Request, res: Response) => {
 export const getDiscountedGames = async (req: Request, res: Response) => {
   try {
     logger.info('Fetching discounted games');
-    const games = await Game.find({ hasDiscount: true });
+    // MONGO BACKUP: const games = await Game.find({ hasDiscount: true });
+    const games = await gameRepository.findWithDiscount();
     logger.info('Discounted games fetched', { context: { count: games.length } });
     res.json(games);
   } catch (error) {
@@ -48,8 +57,17 @@ export const searchGames = async (req: Request, res: Response) => {
   try {
     const { query } = req.query;
     logger.info('Searching games', { context: { query } });
-    const games = await Game.find({
-      $or: [{ title: { $regex: query, $options: 'i' } }],
+    // MONGO BACKUP: const games = await Game.find({
+    // MONGO BACKUP:   $or: [{ title: { $regex: query, $options: 'i' } }],
+    // MONGO BACKUP: });
+    const games = await prisma.game.findMany({
+      where: {
+        title: {
+          contains: query as string,
+          mode: 'insensitive'
+        }
+      },
+      include: { offers: true }
     });
     logger.info('Games search completed', { context: { query, count: games.length } });
     res.json(games);
@@ -64,12 +82,13 @@ export const getGameById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     logger.info('Fetching game by ID', { context: { gameId: id } });
-    const game = await Game.findById(id);
+    // MONGO BACKUP: const game = await Game.findById(id);
+    const game = await gameRepository.findById(parseInt(id));
     if (!game) {
       logger.warn('Game not found', { context: { gameId: id } });
       return res.status(404).json({ error: 'Game not found' });
     }
-    logger.info('Game fetched successfully', { context: { gameId: game._id } });
+    logger.info('Game fetched successfully', { context: { gameId: game.id } });
     res.json(game);
   } catch (error) {
     logger.error('Error fetching game by ID', { context: { error } });
@@ -103,17 +122,19 @@ export const createGame = async (req: Request, res: Response) => {
       return res.status(400).json({ error: `Invalid fields: ${invalidFields.join(', ')}` });
     }
 
-    // Check if game already exists
-    const existingGame = await Game.findOne({ title: req.body.title });
+    // MONGO BACKUP: const existingGame = await Game.findOne({ title: req.body.title });
+    const existingGame = await prisma.game.findFirst({
+      where: { title: req.body.title }
+    });
     if (existingGame) {
       logger.warn('Game already exists', { context: { title: req.body.title } });
       return res.status(400).json({ error: 'Game already exists' });
     }
 
-    // Create a new game
-    const game = new Game(req.body);
-    await game.save();
-    logger.info('Game created successfully', { context: { gameId: game._id } });
+    // MONGO BACKUP: const game = new Game(req.body);
+    // MONGO BACKUP: await game.save();
+    const game = await gameRepository.create(req.body);
+    logger.info('Game created successfully', { context: { gameId: game.id } });
     res.status(201).json(game);
   } catch (error) {
     logger.error('Error creating game', { context: { error } });
@@ -126,12 +147,13 @@ export const updateGame = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     logger.info('Updating game', { context: { gameId: id, body: req.body } });
-    const game = await Game.findByIdAndUpdate(id, req.body, { new: true });
+    // MONGO BACKUP: const game = await Game.findByIdAndUpdate(id, req.body, { new: true });
+    const game = await gameRepository.update(parseInt(id), req.body);
     if (!game) {
       logger.warn('Game not found for update', { context: { gameId: id } });
       return res.status(404).json({ error: 'Game not found' });
     }
-    logger.info('Game updated successfully', { context: { gameId: game._id } });
+    logger.info('Game updated successfully', { context: { gameId: game.id } });
     res.json(game);
   } catch (error) {
     logger.error('Error updating game', { context: { error } });
@@ -144,12 +166,13 @@ export const deleteGame = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     logger.info('Deleting game', { context: { gameId: id } });
-    const game = await Game.findByIdAndDelete(id);
+    // MONGO BACKUP: const game = await Game.findByIdAndDelete(id);
+    const game = await gameRepository.delete(parseInt(id));
     if (!game) {
       logger.warn('Game not found for deletion', { context: { gameId: id } });
       return res.status(404).json({ error: 'Game not found' });
     }
-    logger.info('Game deleted successfully', { context: { gameId: game._id } });
+    logger.info('Game deleted successfully', { context: { gameId: game.id } });
     res.json({ message: 'Game deleted successfully' });
   } catch (error) {
     logger.error('Error deleting game', { context: { error } });

@@ -1,17 +1,19 @@
 import { Request, Response } from 'express';
 import { createHash, createHmac } from 'crypto';
 import axios from 'axios';
-import Order, {IOrder} from '../models/Order';
-import User from '../models/User';
-import Payment from '../models/Payment';
+// MONGO BACKUP: import Order, {IOrder} from '../models/Order';
+// MONGO BACKUP: import User from '../models/User';
+// MONGO BACKUP: import Payment from '../models/Payment';
 import { logger } from '../config/logger';
-import Offer from '../models/Offer';
-import Game from '../models/Game';
+// MONGO BACKUP: import Offer from '../models/Offer';
+// MONGO BACKUP: import Game from '../models/Game';
 import {clients, io} from '../../index';
-import {Chat, IMessage} from "../models/Chat";
+// MONGO BACKUP: import {Chat, IMessage} from "../models/Chat";
 import console from "node:console";
 import {sign} from "@telegram-apps/init-data-node";
-import process from "node:process"; // Import the Socket.IO instance
+import process from "node:process";
+import { prisma } from '../db/client';
+import { orderRepository, paymentRepository, chatRepository } from '../db';
 
 export const handleCryptoWebhook = async (req: Request, res: Response) => {
   try {
@@ -52,46 +54,72 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
 
       logger.info('Processing invoice_paid update', { context: { invoice_id } });
 
-      // Update payment record
-      const payment = await Payment.findOne({ externalId: invoice_id });
+      // MONGO BACKUP: const payment = await Payment.findOne({ externalId: invoice_id });
+      const payment = await prisma.payment.findFirst({
+        where: { externalId: invoice_id }
+      });
 
       if (!payment) {
         logger.error('Payment not found for invoice_id', { context: { invoice_id } });
         return res.status(404).json({ error: 'Payment not found' });
       }
 
-      payment.status = 'completed';
-      await payment.save();
-      logger.info('Payment status updated to completed', { context: { paymentId: payment._id } });
-
-      // Create or update order
-      const order = new Order({
-        paymentId: payment._id,
-        userId: payment.userId,
-        offerId: payment.offerId,
-        status: 'pending',
-        currency: payment.currency,
+      // MONGO BACKUP: payment.status = 'completed';
+      // MONGO BACKUP: await payment.save();
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'completed' }
       });
+      logger.info('Payment status updated to completed', { context: { paymentId: payment.id } });
 
-      await order.save();
-      logger.info('Order created successfully', { context: { orderId: order._id } });
+      // MONGO BACKUP: const order = new Order({
+      // MONGO BACKUP:   paymentId: payment._id,
+      // MONGO BACKUP:   userId: payment.userId,
+      // MONGO BACKUP:   offerId: payment.offerId,
+      // MONGO BACKUP:   status: 'pending',
+      // MONGO BACKUP:   currency: payment.currency,
+      // MONGO BACKUP: });
+      // MONGO BACKUP: await order.save();
+      
+      const order = await orderRepository.create({
+        payment: { connect: { id: payment.id } },
+        user: { connect: { id: payment.userId } },
+        offer: { connect: { id: payment.offerId } },
+        status: 'pending',
+        currency: payment.currency as 'USDT' | 'RUB',
+      });
+      
+      logger.info('Order created successfully', { context: { orderId: order.id } });
 
-      const updatedPayment = await Payment.findByIdAndUpdate(payment._id, { orderId: order._id });
+      // MONGO BACKUP: const updatedPayment = await Payment.findByIdAndUpdate(payment._id, { orderId: order._id });
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { orderId: order.id }
+      });
+      
       if (!updatedPayment) {
-        logger.error('Payment not found for orderId', { context: { orderId: order._id } });
+        logger.error('Payment not found for orderId', { context: { orderId: order.id } });
         return res.status(404).json({ error: 'Payment not found' });
       }
 
-      // Update user's order count
-      await User.findByIdAndUpdate(payment.userId, { $inc: { ordersCount: 1 } }, { new: true });
+      // MONGO BACKUP: await User.findByIdAndUpdate(payment.userId, { $inc: { ordersCount: 1 } }, { new: true });
+      await prisma.user.update({
+        where: { id: payment.userId },
+        data: { ordersCount: { increment: 1 } }
+      });
       logger.info('User order count updated', { context: { userId: payment.userId } });
 
-      const offer = await Offer.findOne({ _id: order.offerId });
-      const game = await Game.findOne({ _id: offer?.gameId });
+      // MONGO BACKUP: const offer = await Offer.findOne({ _id: order.offerId });
+      // MONGO BACKUP: const game = await Game.findOne({ _id: offer?.gameId });
+      const offer = await prisma.offer.findUnique({
+        where: { id: order.offerId },
+        include: { game: true }
+      });
+      const game = offer?.game;
 
       // Send notifications
       const orderMsg = `📦 *Order status changed*\n` +
-          `🆔 Order ID: ${order._id}\n` +
+          `🆔 Order ID: ${order.id}\n` +
           `🎮 Game: ${game?.title}\n` +
           `🎮 Offer: ${offer?.title}\n` +
           `💰 Amount: ${payment?.amountToPay} ${order.currency}\n` +
@@ -99,21 +127,23 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
           `🕒 Created: ${new Date(order.createdAt).toLocaleString()}\n` +
           `🕒 Modified: ${new Date(order.updatedAt).toLocaleString()}\n`;
 
-      const message: IMessage = { sender: -1, content: orderMsg, timestamp: new Date(), isSystemMessage: false };
+      const message = { sender: -1, content: orderMsg, timestamp: new Date(), isSystemMessage: false };
 
-      let chat = await Chat.findOne({ userId: order.userId });
-      if (!chat) {
-        chat = new Chat({
-          userId: order.userId,
-          messages: [message],
-          lastReadByUser: new Date(),
-          lastReadByAdmin: new Date(0),
-          unreadAdminCount: 0,
-        });
-      } else {
-        chat.messages.push(message);
-      }
-      await chat.save();
+      // MONGO BACKUP: let chat = await Chat.findOne({ userId: order.userId });
+      // MONGO BACKUP: if (!chat) {
+      // MONGO BACKUP:   chat = new Chat({
+      // MONGO BACKUP:     userId: order.userId,
+      // MONGO BACKUP:     messages: [message],
+      // MONGO BACKUP:     lastReadByUser: new Date(),
+      // MONGO BACKUP:     lastReadByAdmin: new Date(0),
+      // MONGO BACKUP:     unreadAdminCount: 0,
+      // MONGO BACKUP:   });
+      // MONGO BACKUP: } else {
+      // MONGO BACKUP:   chat.messages.push(message);
+      // MONGO BACKUP: }
+      // MONGO BACKUP: await chat.save();
+      
+      await chatRepository.addMessage(order.userId, message);
 
       const clientSocketId = clients.get(order.userId);
 
@@ -121,18 +151,19 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
         io.to(clientSocketId).emit('new_message', { sender: -1, content: orderMsg });
       }
 
-      const orders: IOrder[] = await Order.find();
+      // MONGO BACKUP: const orders: IOrder[] = await Order.find();
+      const orders = await orderRepository.findAll();
 
       io.to('admin').emit('new-order', orders);
 
-      logger.info('New order notification sent via WebSocket', { context: { orderId: order._id } });
+      logger.info('New order notification sent via WebSocket', { context: { orderId: order.id } });
 
       const botToken = process.env.BOT_TOKEN;
       const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
       await axios.post(url, {
         chat_id: order.userId,
-        text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order._id}.`,
+        text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order.id}.`,
         reply_markup: {
           inline_keyboard: [[
             {
@@ -182,46 +213,72 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
     if (stage === true) {
       logger.info('Processing rub invoice_paid update', { context: { invoice_id } });
 
-      // Update payment record
-      const payment = await Payment.findOne({ externalId: invoice_id });
+      // MONGO BACKUP: const payment = await Payment.findOne({ externalId: invoice_id });
+      const payment = await prisma.payment.findFirst({
+        where: { externalId: invoice_id }
+      });
 
       if (!payment) {
         logger.error('Payment not found for invoice_id', { context: { invoice_id } });
         return res.status(404).json({ error: 'Payment not found' });
       }
 
-      payment.status = 'completed';
-      await payment.save();
-      logger.info('Payment status updated to completed', { context: { paymentId: payment._id } });
-
-      // Create or update order
-      const order = new Order({
-        paymentId: payment._id,
-        userId: payment.userId,
-        offerId: payment.offerId,
-        status: 'pending',
-        currency: payment.currency,
+      // MONGO BACKUP: payment.status = 'completed';
+      // MONGO BACKUP: await payment.save();
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: 'completed' }
       });
+      logger.info('Payment status updated to completed', { context: { paymentId: payment.id } });
 
-      await order.save();
-      logger.info('Order created successfully', { context: { orderId: order._id } });
+      // MONGO BACKUP: const order = new Order({
+      // MONGO BACKUP:   paymentId: payment._id,
+      // MONGO BACKUP:   userId: payment.userId,
+      // MONGO BACKUP:   offerId: payment.offerId,
+      // MONGO BACKUP:   status: 'pending',
+      // MONGO BACKUP:   currency: payment.currency,
+      // MONGO BACKUP: });
+      // MONGO BACKUP: await order.save();
+      
+      const order = await orderRepository.create({
+        payment: { connect: { id: payment.id } },
+        user: { connect: { id: payment.userId } },
+        offer: { connect: { id: payment.offerId } },
+        status: 'pending',
+        currency: payment.currency as 'USDT' | 'RUB',
+      });
+      
+      logger.info('Order created successfully', { context: { orderId: order.id } });
 
-      const updatedPayment = await Payment.findByIdAndUpdate(payment._id, { orderId: order._id });
+      // MONGO BACKUP: const updatedPayment = await Payment.findByIdAndUpdate(payment._id, { orderId: order._id });
+      const updatedPayment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: { orderId: order.id }
+      });
+      
       if (!updatedPayment) {
-        logger.error('Payment not found for orderId', { context: { orderId: order._id } });
+        logger.error('Payment not found for orderId', { context: { orderId: order.id } });
         return res.status(404).json({ error: 'Payment not found' });
       }
 
-      // Update user's order count
-      await User.findByIdAndUpdate(payment.userId, { $inc: { ordersCount: 1 } }, { new: true });
+      // MONGO BACKUP: await User.findByIdAndUpdate(payment.userId, { $inc: { ordersCount: 1 } }, { new: true });
+      await prisma.user.update({
+        where: { id: payment.userId },
+        data: { ordersCount: { increment: 1 } }
+      });
       logger.info('User order count updated', { context: { userId: payment.userId } });
 
-      const offer = await Offer.findOne({ _id: order.offerId });
-      const game = await Game.findOne({ _id: offer?.gameId });
+      // MONGO BACKUP: const offer = await Offer.findOne({ _id: order.offerId });
+      // MONGO BACKUP: const game = await Game.findOne({ _id: offer?.gameId });
+      const offer = await prisma.offer.findUnique({
+        where: { id: order.offerId },
+        include: { game: true }
+      });
+      const game = offer?.game;
 
       // Send notifications
       const orderMsg = `📦 *Order status changed*\n` +
-          `🆔 Order ID: ${order._id}\n` +
+          `🆔 Order ID: ${order.id}\n` +
           `🎮 Game: ${game?.title}\n` +
           `🎮 Offer: ${offer?.title}\n` +
           `💰 Amount: ${payment?.amountToPay} ${order.currency}\n` +
@@ -229,21 +286,23 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
           `🕒 Created: ${new Date(order.createdAt).toLocaleString()}\n` +
           `🕒 Modified: ${new Date(order.updatedAt).toLocaleString()}\n`;
 
-      const message: IMessage = { sender: -1, content: orderMsg, timestamp: new Date(), isSystemMessage: false };
+      const message = { sender: -1, content: orderMsg, timestamp: new Date(), isSystemMessage: false };
 
-      let chat = await Chat.findOne({ userId: order.userId });
-      if (!chat) {
-        chat = new Chat({
-          userId: order.userId,
-          messages: [message],
-          lastReadByUser: new Date(),
-          lastReadByAdmin: new Date(0),
-          unreadAdminCount: 0,
-        });
-      } else {
-        chat.messages.push(message);
-      }
-      await chat.save();
+      // MONGO BACKUP: let chat = await Chat.findOne({ userId: order.userId });
+      // MONGO BACKUP: if (!chat) {
+      // MONGO BACKUP:   chat = new Chat({
+      // MONGO BACKUP:     userId: order.userId,
+      // MONGO BACKUP:     messages: [message],
+      // MONGO BACKUP:     lastReadByUser: new Date(),
+      // MONGO BACKUP:     lastReadByAdmin: new Date(0),
+      // MONGO BACKUP:     unreadAdminCount: 0,
+      // MONGO BACKUP:   });
+      // MONGO BACKUP: } else {
+      // MONGO BACKUP:   chat.messages.push(message);
+      // MONGO BACKUP: }
+      // MONGO BACKUP: await chat.save();
+      
+      await chatRepository.addMessage(order.userId, message);
 
       const clientSocketId = clients.get(order.userId);
 
@@ -251,18 +310,19 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
         io.to(clientSocketId).emit('new_message', { sender: -1, content: orderMsg });
       }
 
-      const orders: IOrder[] = await Order.find();
+      // MONGO BACKUP: const orders: IOrder[] = await Order.find();
+      const orders = await orderRepository.findAll();
 
       io.to('admin').emit('new-order', orders);
 
-      logger.info('New order notification sent via WebSocket', { context: { orderId: order._id } });
+      logger.info('New order notification sent via WebSocket', { context: { orderId: order.id } });
 
       const botToken = process.env.BOT_TOKEN;
       const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
       await axios.post(url, {
         chat_id: order.userId,
-        text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order._id}.`,
+        text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order.id}.`,
         reply_markup: {
           inline_keyboard: [[
             {
@@ -282,7 +342,11 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
         "description": "Order " + order_id,
       });
     } else {
-      const payment = await Payment.findOne({ externalId: invoice_id });
+      // MONGO BACKUP: const payment = await Payment.findOne({ externalId: invoice_id });
+      const payment = await prisma.payment.findFirst({
+        where: { externalId: invoice_id }
+      });
+      
       if (!payment) {
         logger.error('Payment not found for invoice_id', { context: { invoice_id } });
         return res.status(404).json({ error: 'Payment not found' });
