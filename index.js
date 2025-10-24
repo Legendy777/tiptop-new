@@ -43,6 +43,12 @@ if (missingVars.length > 0) {
 const PORT = process.env.PORT || '3000';
 console.log(`ℹ️  Сервер будет запущен на порту: ${PORT}`);
 
+// Автоматически устанавливаем API_URL если не задан
+if (!process.env.API_URL) {
+  process.env.API_URL = `http://localhost:${PORT}/api`;
+  console.log(`ℹ️  API_URL установлен автоматически: ${process.env.API_URL}`);
+}
+
 // Автоматически устанавливаем CLIENT_URL если не задан
 if (!process.env.CLIENT_URL) {
   const replSlug = process.env.REPL_SLUG || 'tip-top';

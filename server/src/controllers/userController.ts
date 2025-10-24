@@ -6,6 +6,14 @@ import console from "node:console";
 import { prisma } from '../db/client';
 import { userRepository } from '../db';
 
+// Helper function to serialize user with BigInt conversion
+function serializeUser(user: any) {
+  return {
+    ...user,
+    telegramId: user.telegramId?.toString(),
+  };
+}
+
 // -> User
 
 // Create a new user
@@ -50,8 +58,8 @@ export const createUser = async (req: Request, res: Response) => {
       avatarUrl: avatarUrl || '',
     });
 
-    logger.info('User created successfully', { context: { userId: user.id } });
-    res.status(201).json(user);
+    logger.info('User created successfully', { context: { userId: user.id, telegramId: user.telegramId.toString() } });
+    res.status(201).json(serializeUser(user));
   } catch (error) {
     logger.error('Error creating user', { context: { error } });
     res.status(400).json({ error: 'Error creating user', details: error });
@@ -95,17 +103,20 @@ export const createUserBot = async (req: Request, res: Response) => {
     // MONGO BACKUP: const user = new User(newUser);
     // MONGO BACKUP: await user.save();
 
-    const user = await userRepository.create({
+    const userData = {
       telegramId: BigInt(req.body.userId),
       username: req.body.username,
       avatarUrl: req.body.avatarUrl,
-    });
+    };
+    
+    const user = await userRepository.create(userData);
 
-    logger.info('User created successfully', { context: { userId: user.id, telegramId: user.telegramId } });
-    res.status(201).json(user);
+    logger.info('User created successfully', { context: { userId: user.id, telegramId: user.telegramId.toString() } });
+    res.status(201).json(serializeUser(user));
   } catch (error) {
+    console.error('DETAILED ERROR creating user:', error);
     logger.error('Error creating user', { context: { error } });
-    res.status(400).json({ error: 'Error creating user', details: error });
+    res.status(400).json({ error: 'Error creating user', details: String(error) });
   }
 };
 
@@ -130,8 +141,8 @@ export const getUserByIdBot = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    logger.info('User fetched successfully', { context: { userId: user.id } });
-    res.json(user);
+    logger.info('User fetched successfully', { context: { userId: user.id, telegramId: user.telegramId.toString() } });
+    res.json(serializeUser(user));
   } catch (error) {
     logger.error('Error fetching user', { context: { error } });
     res.status(500).json({ error: 'Error fetching user' });
@@ -152,8 +163,8 @@ export const getUserById = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    logger.info('User fetched successfully', { context: { userId: user.id } });
-    res.json(user);
+    logger.info('User fetched successfully', { context: { userId: user.id, telegramId: user.telegramId.toString() } });
+    res.json(serializeUser(user));
   } catch (error) {
     logger.error('Error fetching user', { context: { error } });
     res.status(500).json({ error: 'Error fetching user' });
@@ -185,8 +196,8 @@ export const updateLanguageBot = async (req: Request, res: Response) => {
   // MONGO BACKUP: await user.save();
   const updatedUser = await userRepository.update(user.id, { language });
 
-  logger.info('User language updated successfully', { context: { userId: updatedUser.id } });
-  res.json(updatedUser);
+  logger.info('User language updated successfully', { context: { userId: updatedUser.id, telegramId: updatedUser.telegramId.toString() } });
+  res.json(serializeUser(updatedUser));
 }
 
 export const updateSubscriptionBot = async (req: Request, res: Response) => {
@@ -213,8 +224,8 @@ export const updateSubscriptionBot = async (req: Request, res: Response) => {
   // MONGO BACKUP: await user.save();
   const updatedUser = await userRepository.updateSubscriptionStatus(user.id, isSubscribed);
 
-  logger.info('User isSubscribed updated successfully', { context: { userId: updatedUser.id } });
-  res.json(updatedUser);
+  logger.info('User isSubscribed updated successfully', { context: { userId: updatedUser.id, telegramId: updatedUser.telegramId.toString() } });
+  res.json(serializeUser(updatedUser));
 }
 
 export const updateLanguage = async (req: Request, res: Response) => {
@@ -235,8 +246,8 @@ export const updateLanguage = async (req: Request, res: Response) => {
   // MONGO BACKUP: await user.save();
   const updatedUser = await userRepository.update(userId!, { language });
 
-  logger.info('User language updated successfully', { context: { userId: updatedUser.id } });
-  res.json(updatedUser);
+  logger.info('User language updated successfully', { context: { userId: updatedUser.id, telegramId: updatedUser.telegramId.toString() } });
+  res.json(serializeUser(updatedUser));
 }
 
 // -> Admin
