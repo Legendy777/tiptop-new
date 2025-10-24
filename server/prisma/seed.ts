@@ -24,6 +24,7 @@ async function main() {
   const users = await Promise.all([
     prisma.user.create({
       data: {
+        telegramId: BigInt(111111111), // Test Telegram ID 1
         username: 'test_user_1',
         language: 'ru',
         balanceRUB: 1000,
@@ -34,6 +35,7 @@ async function main() {
     }),
     prisma.user.create({
       data: {
+        telegramId: BigInt(222222222), // Test Telegram ID 2
         username: 'test_user_2',
         language: 'en',
         balanceRUB: 500,
@@ -44,6 +46,7 @@ async function main() {
     }),
     prisma.user.create({
       data: {
+        telegramId: BigInt(333333333), // Test Admin Telegram ID
         username: 'admin_user',
         language: 'ru',
         balanceRUB: 10000,

@@ -72,6 +72,22 @@ export class UserRepository {
     }
   }
 
+  async findByTelegramId(telegramId: bigint | number) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { telegramId: BigInt(telegramId) },
+        include: {
+          chat: true,
+          referrals: true,
+          referredBy: true,
+        },
+      });
+      return user;
+    } catch (error) {
+      throw new DatabaseError('Failed to find user by telegram ID', error);
+    }
+  }
+
   async updateBalance(id: number, currency: Currency, amount: number) {
     try {
       const field = currency === 'RUB' ? 'balanceRUB' : 'balanceUSDT';

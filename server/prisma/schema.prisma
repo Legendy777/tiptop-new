@@ -52,6 +52,7 @@ enum TransactionType {
 
 model User {
   id                      Int           @id @default(autoincrement())
+  telegramId              BigInt        @unique
   username                String
   language                String        @default("ru")
   isBanned                Boolean       @default(false)
@@ -77,6 +78,7 @@ model User {
   chat                    Chat?
 
   @@index([id])
+  @@index([telegramId])
   @@index([username])
   @@map("users")
 }
