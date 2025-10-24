@@ -297,9 +297,9 @@ io.on('connection', socket => {
 
 connectDB()
     .then(() => {
-        // CHANGED: Final fixed version, TypeScript-compatible
-        httpServer.listen({ port: PORT, host: '127.0.0.1' }, () => {
-            logger.info(`Server (brain) is running and waiting for commands from Nginx on port ${PORT}`);
+        // Listen on 0.0.0.0 to accept external traffic from Replit reverse proxy
+        httpServer.listen(PORT as number, '0.0.0.0', () => {
+            logger.info(`Server is running on port ${PORT} and accepting external connections`);
         });
     })
     .catch((error) => {

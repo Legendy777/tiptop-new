@@ -1,0 +1,107 @@
+#!/usr/bin/env node
+
+/**
+ * Launcher для Tip-Top платформы на Replit
+ * Запускает все 4 компонента: server, bot, client, admin
+ */
+
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+
+console.log('🚀 Tip-Top Platform Launcher');
+console.log('');
+
+// Проверка переменных окружения
+const requiredEnvVars = ['BOT_TOKEN', 'BOT_USERNAME', 'ADMIN_ID', 'MONGODB_URI'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingVars.length > 0) {
+  console.error('❌ Недостающие переменные окружения:', missingVars.join(', '));
+  console.error('');
+  console.error('Пожалуйста, добавьте их в Replit Secrets (🔒)');
+  console.error('');
+  console.error('Инструкции: см. DEPLOYMENT_GUIDE.md');
+  process.exit(1);
+}
+
+// Не перезаписываем PORT - используем значение из .replit environment
+// По умолчанию Replit устанавливает PORT=5000
+const PORT = process.env.PORT || '3000';
+console.log(`ℹ️  Сервер будет запущен на порту: ${PORT}`);
+
+// Автоматически устанавливаем CLIENT_URL если не задан
+if (!process.env.CLIENT_URL) {
+  const replSlug = process.env.REPL_SLUG || 'tip-top';
+  const replOwner = process.env.REPL_OWNER || 'user';
+  process.env.CLIENT_URL = `https://${replSlug}.${replOwner}.repl.co`;
+  console.log(`ℹ️  CLIENT_URL установлен автоматически: ${process.env.CLIENT_URL}`);
+  console.log('');
+}
+
+console.log('✅ Все переменные окружения настроены');
+console.log('');
+console.log('📦 Запуск компонентов...');
+console.log('');
+
+const processes = [];
+
+// Функция для запуска процесса
+function startProcess(name, cwd, command, args = []) {
+  console.log(`🔧 Запуск ${name}...`);
+  
+  const proc = spawn(command, args, {
+    cwd,
+    stdio: 'inherit',
+    shell: true,
+    env: { ...process.env }
+  });
+  
+  proc.on('error', (err) => {
+    console.error(`❌ Ошибка запуска ${name}:`, err);
+  });
+  
+  proc.on('exit', (code) => {
+    console.log(`⚠️  ${name} завершился с кодом ${code}`);
+  });
+  
+  processes.push({ name, proc });
+  return proc;
+}
+
+// Запускаем все компоненты
+const serverCwd = path.join(__dirname, 'server');
+const botCwd = path.join(__dirname, 'bot');
+
+startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'dev']);
+startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'dev']);
+
+console.log('');
+console.log('✅ Платформа Tip-Top запущена!');
+console.log('');
+console.log('📍 Доступные сервисы:');
+console.log(`   - API сервер: http://localhost:${PORT}`);
+console.log('   - Telegram бот: активен');
+console.log('');
+console.log('💡 Для полного dev окружения также запустите:');
+console.log('   - Клиент: cd client && npm run dev (порт 5173)');
+console.log('   - Админ: cd admin && npm run dev (порт 5174)');
+console.log('');
+console.log('📖 Инструкции: см. DEPLOYMENT_GUIDE.md');
+console.log('');
+
+// Обработка завершения
+process.on('SIGINT', () => {
+  console.log('');
+  console.log('⏹️  Остановка всех процессов...');
+  processes.forEach(({ name, proc }) => {
+    console.log(`   Останавливаю ${name}...`);
+    proc.kill('SIGINT');
+  });
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  processes.forEach(({ proc }) => proc.kill('SIGTERM'));
+  process.exit(0);
+});
