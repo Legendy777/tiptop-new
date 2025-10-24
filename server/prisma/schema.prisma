@@ -1,0 +1,297 @@
+// Tip-Top Platform - PostgreSQL Schema
+// Migrated from MongoDB with improvements
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum OrderStatus {
+  pending
+  process
+  completed
+  canceled
+  invalid
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  canceled
+}
+
+enum WithdrawalStatus {
+  pending
+  completed
+  rejected
+}
+
+enum Currency {
+  RUB
+  USDT
+}
+
+enum TransactionType {
+  order
+  refund
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id                      Int           @id @default(autoincrement())
+  username                String
+  language                String        @default("ru")
+  isBanned                Boolean       @default(false)
+  isSubscribed            Boolean       @default(false)
+  avatarUrl               String        @default("")
+  balanceRUB              Decimal       @default(0) @db.Decimal(10, 2)
+  balanceUSDT             Decimal       @default(0) @db.Decimal(10, 6)
+  ordersCount             Int           @default(0)
+  referralPercent         Decimal       @default(1) @db.Decimal(5, 2)
+  acceptedPrivacyConsent  Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  // Relations
+  orders                  Order[]
+  payments                Payment[]
+  reviews                 Review[]
+  transactions            Transaction[] @relation("UserTransactions")
+  referrerTransactions    Transaction[] @relation("ReferrerTransactions")
+  referrals               Referral[]    @relation("UserReferrals")
+  referredBy              Referral[]    @relation("ReferrerReferrals")
+  withdrawals             Withdrawal[]
+  chat                    Chat?
+
+  @@index([id])
+  @@index([username])
+  @@map("users")
+}
+
+model Game {
+  id              Int       @id @default(autoincrement())
+  title           String
+  imageUrl        String
+  gifUrl          String
+  hasDiscount     Boolean   @default(false)
+  isActual        Boolean   @default(true)
+  isEnabled       Boolean   @default(true)
+  appleStoreUrl   String
+  googlePlayUrl   String
+  trailerUrl      String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  offers          Offer[]
+
+  @@index([isEnabled, isActual])
+  @@map("games")
+}
+
+model Offer {
+  id          Int       @id @default(autoincrement())
+  gameId      Int
+  title       String
+  imageUrl    String
+  priceRUB    Decimal   @db.Decimal(10, 2)
+  priceUSDT   Decimal   @db.Decimal(10, 6)
+  isEnabled   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  game        Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  orders      Order[]
+  payments    Payment[]
+
+  @@index([gameId])
+  @@index([isEnabled])
+  @@index([gameId, title])
+  @@map("offers")
+}
+
+model Order {
+  id              Int           @id @default(autoincrement())
+  paymentId       Int
+  userId          Int
+  offerId         Int
+  status          OrderStatus   @default(pending)
+  currency        Currency
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offer           Offer         @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  payment         Payment?
+  orderDetails    OrderDetails?
+  review          Review?
+
+  @@index([userId])
+  @@index([offerId])
+  @@index([status])
+  @@index([userId, status])
+  @@map("orders")
+}
+
+model OrderDetails {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @unique
+  entry         String?
+  login         String?
+  password      String?
+  code          String?
+  server        String?
+  nickname      String?
+  userInGameId  Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_details")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  externalId    String        @unique
+  userId        Int
+  orderId       Int?          @unique
+  offerId       Int
+  amountToPay   Decimal       @db.Decimal(10, 6)
+  currency      Currency
+  status        PaymentStatus
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order         Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  offer         Offer         @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([externalId])
+  @@map("payments")
+}
+
+model Chat {
+  id                  Int           @id @default(autoincrement())
+  userId              Int           @unique
+  lastReadByUser      DateTime?
+  lastReadByAdmin     DateTime?
+  unreadAdminCount    Int           @default(0)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages            ChatMessage[]
+
+  @@map("chats")
+}
+
+model ChatMessage {
+  id              Int       @id @default(autoincrement())
+  chatId          Int
+  sender          Int
+  content         String
+  isSystemMessage Boolean   @default(false)
+  timestamp       DateTime  @default(now())
+
+  // Relations
+  chat            Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([timestamp])
+  @@map("chat_messages")
+}
+
+model Review {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  orderId   Int       @unique
+  username  String
+  rating    Int
+  comment   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([rating])
+  @@map("reviews")
+}
+
+model Referral {
+  id        Int       @id @default(autoincrement())
+  userId    Int       
+  referId   Int       
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  user      User      @relation("UserReferrals", fields: [userId], references: [id], onDelete: Cascade)
+  referrer  User      @relation("ReferrerReferrals", fields: [referId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([referId])
+  @@map("referrals")
+}
+
+model Transaction {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  referId   Int?
+  amount    Decimal         @db.Decimal(10, 6)
+  currency  Currency
+  earned    Decimal?        @db.Decimal(10, 6)
+  type      TransactionType
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  // Relations
+  user      User            @relation("UserTransactions", fields: [userId], references: [id], onDelete: Cascade)
+  referrer  User?           @relation("ReferrerTransactions", fields: [referId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([referId])
+  @@index([type])
+  @@map("transactions")
+}
+
+model Withdrawal {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  amount    Decimal          @db.Decimal(10, 6)
+  status    WithdrawalStatus @default(pending)
+  currency  Currency
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@map("withdrawals")
+}
