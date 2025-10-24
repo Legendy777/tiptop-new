@@ -1,0 +1,203 @@
+{
+  "header": {
+    "searchPlaceholder": "Enter the name of the game...",
+    "chooseLanguage": "Choose Language"
+  },
+  "gridWidget": {
+    "title": "Cards per Row"
+  },
+  "langWidget": {
+    "title": "Choose Language",
+    "ru": "Russian",
+    "en": "English"
+  },
+  "home": {
+    "loading": "Loading...",
+    "error": "Error: {{error}}",
+    "noProducts": "No products available",
+    "noGame": "Game not found"
+  },
+  "offers": {
+    "loading": "Loading...",
+    "error": "Error: {{error}}",
+    "noProducts": "No offers available",
+    "footerText": "Didn't find the product you were looking for",
+    "footerBtn": "Contact us"
+  },
+  "order": {
+    "text": "Choose payment method:",
+    "cancel": "Cancel"
+  },
+  "categoriesWidget": {
+    "allGames": "All games",
+    "actualGames": "Actual games",
+    "discounts": "Discounts"
+  },
+  "menu": {
+    "balance": "Balance",
+    "orders": "Orders",
+    "reviews": "Reviews",
+    "support": "Support",
+    "aboutUs": "About us"
+  },
+  "chat": {
+    "enter": "Type your message...",
+    "send": "Send"
+  },
+  "switchGamesPanel": {
+    "history": "History of your orders",
+    "referral": "Referral program",
+    "rules": "Program rules",
+    "statistics": "Statistics",
+    "withdrawal": "Withdrawal of funds",
+    "reviews": "Reviews",
+    "entry": "Order data entry",
+    "about": "About us",
+    "support": "Support",
+    "review": "Review data entry"
+  },
+  "profile": {
+    "detailsBtn": "Details",
+    "desc": "Invite your friends and earn with TipTop! Get from 1% to 5% from each of their purchases",
+    "balance": "Balance:",
+    "withdrawalBtn": "Withdraw",
+    "linkText": "Invitation link:",
+    "statisticsBtn": "statistics",
+    "referrals": "Referrals",
+    "purchases": "Purchases",
+    "income": "Income",
+    "notification": "Profile updated! ✅"
+  },
+  "referralsDetails": {
+    "title": "Earn with TipTop",
+    "desc": "Share your referral link, attract new users and earn income from each of their purchases. The more referrals, the higher your earnings!",
+    "advantagesTitle": "Advantages",
+    "advantagesText1": "A percentage of each purchase depending on your level",
+    "advantagesText2": "No restrictions on using the link",
+    "advantagesText3": "Convenient withdrawal of funds",
+    "levelsTitle": "Reward levels",
+    "levelsDesc": "Your level is determined by the total number of purchases your referrals make:",
+    "conditionsTitle": "Terms and Conditions",
+    "conditionsText1": "Minimum withdrawal amount: $1",
+    "conditionsText2": "Payments within 24 hours",
+    "conditionsText3": "Only active users",
+    "conditionsText4": "Multi-accounts are prohibited"
+  },
+  "withdrawals": {
+    "title": "Withdrawal via Crypto Bot",
+    "text1": "Application processing: up to 24 hours.",
+    "text2": "Important: Only one application can be processed.",
+    "text3": "Direct crediting via the TON network, no fees!",
+    "text4": "Notification of crediting upon completion.",
+    "balance": "Balance",
+    "btn": "Withdraw",
+    "historyTitle": "History of withdrawals",
+    "date": "Date",
+    "completed": "Completed",
+    "pending": "Pending",
+    "failed": "Failed"
+  },
+  "statistics": {
+    "referrals": "Referrals",
+    "purchases": "Purchases",
+    "income": "Income",
+    "user": "User",
+    "sum": "Sum",
+    "date": "Date",
+    "accrual": "Accrual"
+  },
+  "orders": {
+    "count": "Orders count",
+    "pending": "Pending",
+    "process": "In process",
+    "canceled": "Canceled",
+    "completed": "Completed",
+    "number": "Order number",
+    "date": "Date",
+    "game": "Game",
+    "status": "Status",
+    "pendingOrder": "Pending",
+    "processOrder": "In process",
+    "canceledOrder": "Canceled",
+    "completedOrder": "Completed"
+  },
+  "reviews": {
+    "desc": "You can read our clients' reviews on popular platforms:",
+    "count": "Total reviews",
+    "byDate": "By date",
+    "byRating": "By rating"
+  },
+  "about": {
+    "tabs": {
+      "about": "About the Store",
+      "info": "Info",
+      "agreement": "User Agreement",
+      "privacy": "Privacy Policy"
+    },
+    "content": {
+      "greetingTitle": "Welcome to our store!",
+      "greetingText": "We’re happy to see you in our game privileges store. Here you'll find everything you need to enhance your gaming experience.",
+      "shopTitle": "About Our Store",
+      "shopText": "Our store offers a wide range of game privileges and items to help you stand out and gain extra advantages in-game.",
+      "advantagesTitle": "Advantages",
+      "advantage1": "Instant delivery of goods after purchase.",
+      "advantage2": "Support for popular payment methods including cryptocurrency.",
+      "advantage3": "Reliable and secure transactions.",
+      "advantage4": "24/7 user support.",
+      "securityTitle": "Security",
+      "securityText": "We guarantee the safety of your data and the confidentiality of all transactions.",
+      "supportTitle": "Support",
+      "supportText": "If you have questions or issues, you can always contact our support via Telegram."
+    },
+    "agreement": {
+      "title": "User Agreement",
+      "date": "Effective date: June 24, 2025",
+      "intro": "This User Agreement governs the relationship between you and our store.",
+      "acceptanceTitle": "Acceptance of Terms",
+      "acceptanceText": "By using our store, you agree to the terms of this Agreement.",
+      "servicesTitle": "Services",
+      "servicesText": "We provide digital goods and privileges that become available after payment.",
+      "liabilityTitle": "Liability",
+      "liabilityText": "We are not responsible for third-party actions or service interruptions beyond our control."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "date": "Effective date: June 24, 2025",
+      "intro": "We respect your privacy and are committed to protecting your personal information.",
+      "collectTitle": "Information Collection",
+      "collectText": "We may collect minimal data needed to process orders and improve our service.",
+      "useTitle": "Use of Information",
+      "useText": "Collected data is used solely to fulfill orders and support users.",
+      "securityTitle": "Data Security",
+      "securityText": "We apply modern security measures to protect your information from unauthorized access."
+    }
+  },
+  "linksWidget": {
+    "catalog": "Catalog",
+    "news": "News",
+    "bot": "Bot"
+  },
+  "orientationWarning": {
+    "text": "Please turn your device vertically"
+  },
+  "reviewForm": {
+    "rating": "Rating",
+    "comment": "Comment",
+    "placeholder": "Write your review here...",
+    "btn": "Submit",
+    "success": "Review submitted successfully!"
+  },
+  "purchaseForm": {
+    "typeTitle": "Choose Binding Type",
+    "gameAccount": "Game Account",
+    "other": "Other",
+    "entry": "Entry",
+    "login": "Login",
+    "password": "Password",
+    "nickname": "Nickname",
+    "code": "Code (optional)",
+    "server": "Server (optional)",
+    "btn": "Submit",
+    "btnUpdate": "Update"
+  }
+}
