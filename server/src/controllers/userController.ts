@@ -29,12 +29,10 @@ export const createUser = async (req: Request, res: Response) => {
     }
 
     // MONGO BACKUP: const user1 = await User.findOne({ _id: userId });
-    const user1 = await prisma.user.findUnique({ where: { id: userId } });
+    const user1 = await userRepository.findByTelegramId(BigInt(userId));
     if (user1) {
-      if (user1.id === userId) {
-        logger.warn(`User with id ${userId} is already exists`);
-        return res.status(200).json({})
-      }
+      logger.warn(`User with telegramId ${userId} already exists`);
+      return res.status(200).json(user1);
     }
 
     // MONGO BACKUP: const newUser = {
@@ -47,9 +45,9 @@ export const createUser = async (req: Request, res: Response) => {
     // MONGO BACKUP: await user.save();
 
     const user = await userRepository.create({
-      id: userId,
+      telegramId: BigInt(userId),
       username: username,
-      avatarUrl: avatarUrl || null,
+      avatarUrl: avatarUrl || '',
     });
 
     logger.info('User created successfully', { context: { userId: user.id } });
