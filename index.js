@@ -13,8 +13,21 @@ console.log('🚀 Tip-Top Platform Launcher');
 console.log('');
 
 // Проверка переменных окружения
-const requiredEnvVars = ['BOT_TOKEN', 'BOT_USERNAME', 'ADMIN_ID', 'MONGODB_URI'];
+const requiredEnvVars = ['BOT_TOKEN', 'BOT_USERNAME', 'ADMIN_ID'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+// Проверяем DATABASE_URL (встроенная PostgreSQL в Replit)
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL не найден. PostgreSQL база должна быть создана в Replit.');
+  console.error('Инструкции: см. DEPLOYMENT_GUIDE.md');
+  process.exit(1);
+}
+
+// Автоматически активируем PostgreSQL
+if (!process.env.USE_POSTGRES) {
+  process.env.USE_POSTGRES = 'true';
+  console.log('ℹ️  USE_POSTGRES автоматически установлен в true');
+}
 
 if (missingVars.length > 0) {
   console.error('❌ Недостающие переменные окружения:', missingVars.join(', '));
