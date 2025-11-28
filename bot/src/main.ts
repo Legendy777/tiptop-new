@@ -210,11 +210,11 @@ bot.launch()
     });
 
     // 🔗 Устанавливаем глобальную кнопку меню «Магазин» программно
-    try {
+/*    try {
       const l = localization(configService.get<string>('localization.defaultLanguage'));
       const webAppUrl = configService.get<string>('webApp.url');
       // Сначала сбрасываем глобальную кнопку меню, затем устанавливаем заново
-      try { await bot.telegram.deleteChatMenuButton(); } catch (e) { /* ignore */ }
+//       try { await bot.telegram.deleteChatMenuButton(); } catch (e) { /* ignore */ }*/
       await bot.telegram.setChatMenuButton(undefined, {
         type: 'web_app',
         text: l.buttons.store,
