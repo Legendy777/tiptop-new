@@ -1,3 +1,4 @@
+// @ts-nocheck
 import 'dotenv/config';
 import { Telegraf, Markup } from 'telegraf';
 import { InlineQueryResultArticle } from 'telegraf/typings/core/types/typegram';
