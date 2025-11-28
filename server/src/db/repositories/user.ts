@@ -1,6 +1,6 @@
 import { prisma } from '../client';
 import { DatabaseError, NotFoundError } from '../error';
-import { Currency, Prisma } from '../../../generated/prisma';
+import { Currency, Prisma } from '@prisma/client';
 
 export class UserRepository {
   async findById(id: number) {

@@ -2,13 +2,14 @@ import axios from "axios";
 import {User} from "./user.service";
 
 export interface Game {
-  _id: number;
+  id: number;
   title: string;
   imageUrl: string;
   gifUrl: string;
   hasDiscount: boolean;
   isEnabled: boolean;
-  appStoreUrl: string;
+  appleStoreUrl?: string;
+  appStoreUrl?: string;
   googlePlayUrl: string;
   trailerUrl: string;
   createdAt: Date;

@@ -74,7 +74,7 @@ bot.on('text', async (ctx) => {
       return;
     }
 
-    const webAppUrl = configService.getString('WEB_APP_URL', WEB_APP_URL);
+    const webAppUrl = configService.get<string>('webApp.url');
     ctx.reply(l.buttons.reply, Markup.inlineKeyboard([
       Markup.button.webApp(l.buttons.supportChat, webAppUrl + '/chat')
     ]));
@@ -122,7 +122,7 @@ bot.on('inline_query', async (ctx) => {
       
       return {
         type: 'article' as const,
-        id: game._id.toString(),
+        id: game.id.toString(),
         title: game.title,
         thumb_url: game.imageUrl || PLACEHOLDER_IMAGE_URL,
         thumb_width: 300,
@@ -208,6 +208,24 @@ bot.launch()
         logging: configService.get('logging'),
       }
     });
+
+    // 🔗 Устанавливаем глобальную кнопку меню «Магазин» программно
+    try {
+      const l = localization(configService.get<string>('localization.defaultLanguage'));
+      const webAppUrl = configService.get<string>('webApp.url');
+      // Сначала сбрасываем глобальную кнопку меню, затем устанавливаем заново
+      try { await bot.telegram.deleteChatMenuButton(); } catch (e) { /* ignore */ }
+      await bot.telegram.setChatMenuButton(undefined, {
+        type: 'web_app',
+        text: l.buttons.store,
+        web_app: { url: webAppUrl },
+      } as any);
+      errorHandler.logInfo(`🧭 Глобальная кнопка меню установлена: ${webAppUrl}`);
+      const currentMenu = await bot.telegram.getChatMenuButton();
+      errorHandler.logInfo(`📋 Текущая конфигурация кнопки меню: ${JSON.stringify(currentMenu)}`);
+    } catch (e) {
+      errorHandler.logWarning('Не удалось установить глобальную кнопку меню', e);
+    }
   })
   .catch(async (error) => {
     errorHandler.logWarning('❌ Ошибка запуска бота:', error);

@@ -1,19 +1,26 @@
 import { prisma } from '../client';
+import { Prisma } from '@prisma/client';
 import { DatabaseError, NotFoundError } from '../error';
-import { Prisma } from '../../../generated/prisma';
+
+type ReferralWithRelations = Prisma.ReferralGetPayload<{
+  include: {
+    user: true;
+    referrer: true;
+  };
+}>;
 
 export class ReferralRepository {
-  async findById(id: number) {
+  async findById(id: number | string): Promise<ReferralWithRelations> {
     try {
       const referral = await prisma.referral.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
           user: true,
           referrer: true,
         },
       });
       if (!referral) {
-        throw new NotFoundError('Referral', id);
+        throw new NotFoundError('Referral', String(id));
       }
       return referral;
     } catch (error) {
@@ -22,12 +29,12 @@ export class ReferralRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<ReferralWithRelations[]> {
     try {
       return await prisma.referral.findMany({
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
         include: {
           user: true,
           referrer: true,
@@ -38,7 +45,7 @@ export class ReferralRepository {
     }
   }
 
-  async create(data: Prisma.ReferralCreateInput) {
+  async create(data: Prisma.ReferralCreateInput): Promise<ReferralWithRelations> {
     try {
       return await prisma.referral.create({
         data,
@@ -52,10 +59,10 @@ export class ReferralRepository {
     }
   }
 
-  async update(id: number, data: Prisma.ReferralUpdateInput) {
+  async update(id: number | string, data: Prisma.ReferralUpdateInput): Promise<ReferralWithRelations> {
     try {
       return await prisma.referral.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
         include: {
           user: true,
@@ -67,18 +74,18 @@ export class ReferralRepository {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number | string) {
     try {
-      return await prisma.referral.delete({ where: { id } });
+      return await prisma.referral.delete({ where: { id: Number(id) } });
     } catch (error) {
       throw new DatabaseError('Failed to delete referral', error);
     }
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: number | string): Promise<ReferralWithRelations | null> {
     try {
       return await prisma.referral.findUnique({
-        where: { userId },
+        where: { userId: Number(userId) },
         include: {
           user: true,
           referrer: true,
@@ -89,10 +96,10 @@ export class ReferralRepository {
     }
   }
 
-  async findByReferrerId(referId: number) {
+  async findByReferrerId(referId: number | string): Promise<ReferralWithRelations[]> {
     try {
       return await prisma.referral.findMany({
-        where: { referId },
+        where: { referId: Number(referId) },
         include: {
           user: true,
           referrer: true,
@@ -104,36 +111,31 @@ export class ReferralRepository {
     }
   }
 
-  async countByReferrerId(referId: number) {
+  async countByReferrerId(referId: number | string): Promise<number> {
     try {
       return await prisma.referral.count({
-        where: { referId },
+        where: { referId: Number(referId) },
       });
     } catch (error) {
       throw new DatabaseError('Failed to count referrals by referrer id', error);
     }
   }
 
-  async getReferrerByUserId(userId: number) {
+  async getReferrerByUserId(userId: number | string) {
     try {
-      const referral = await prisma.referral.findUnique({
-        where: { userId },
-        include: {
-          referrer: true,
-        },
-      });
+      const referral = await this.findByUserId(userId);
       return referral?.referrer || null;
     } catch (error) {
       throw new DatabaseError('Failed to get referrer by user id', error);
     }
   }
 
-  async createReferral(userId: number, referId: number) {
+  async createReferral(userId: number | string, referId: number | string): Promise<ReferralWithRelations> {
     try {
       return await prisma.referral.create({
         data: {
-          user: { connect: { id: userId } },
-          referrer: { connect: { id: referId } },
+          user: { connect: { id: Number(userId) } },
+          referrer: { connect: { id: Number(referId) } },
         },
         include: {
           user: true,

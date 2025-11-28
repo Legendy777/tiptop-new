@@ -29,7 +29,8 @@ out/
 build/
 dist/
 *.log
-*.lock
+# Не игнорируем lock-файлы менеджеров пакетов (важны для сборок)
+# Удалён шаблон *.lock
 
 # Environment variables
 .env
@@ -37,6 +38,18 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+
+# Сертификаты и ключи
+*.pem
+*.key
+server/ssl/
+
+# Cloudflared токены (секреты)
+cloudflared/*.json
+
+# Логи сервера
+server/logs/
 
 # Jest
 coverage/

@@ -22,6 +22,22 @@ async function main() {
   // Создаём пользователей
   console.log('👤 Creating users...');
   const users = await Promise.all([
+    // Пользователь из ваших мок-данных (Mongo)
+    prisma.user.create({
+      data: {
+        telegramId: BigInt(508173732),
+        username: 'Legendy_Vlad',
+        language: 'ru',
+        isBanned: false,
+        isSubscribed: true,
+        avatarUrl: 'https://api.telegram.org/file/bot6378846431:AAHQKHdVQRE07DsKDECF1y3rEZynolWuM9I/photos/file_2.jpg',
+        balanceRUB: 0,
+        balanceUSDT: 0,
+        ordersCount: 0,
+        referralPercent: 1,
+        acceptedPrivacyConsent: false,
+      },
+    }),
     prisma.user.create({
       data: {
         telegramId: BigInt(111111111), // Test Telegram ID 1
@@ -62,6 +78,33 @@ async function main() {
   // Создаём игры
   console.log('🎮 Creating games...');
   const games = await Promise.all([
+    // Игры из ваших мок-данных (Mongo)
+    prisma.game.create({
+      data: {
+        title: '📲 Asphalt Legends - Racing Game',
+        imageUrl: 'https://i.ibb.co/BHqtVK4Q/PLmy-Zqt-Hm-PZ.jpg',
+        gifUrl: 'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc25iMG9hcXpnamUzMmV3ZWd2cGtqb2F5NGwyajA3a21tb3B1c3c1biZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LDjKkXTfIPZ7zYOcvq/giphy.gif',
+        hasDiscount: true,
+        isActual: true, // isActive -> isActual
+        isEnabled: true,
+        appleStoreUrl: 'https://apps.apple.com/us/app/asphalt-legends-racing-game/id805603214',
+        googlePlayUrl: 'https://play.google.com/store/apps/details?id=com.gameloft.android.ANMP.GloftA9HM&listing=as9_porsche_911_csl_092023&hl=en-US',
+        trailerUrl: 'https://youtu.be/TEuZZB_zSOw',
+      },
+    }),
+    prisma.game.create({
+      data: {
+        title: '📲 EA SPORTS FC™ Mobile Football',
+        imageUrl: 'https://i.ibb.co/8gqJrKMF/Ysdb-Aauqynx.jpg',
+        gifUrl: 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWdqbGlqNnV3cG9nejc4anNudm5ycXE3bmhkMWhjZnlxejlsejExNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Br5i1DgRrNT9uCvssd/giphy.gif',
+        hasDiscount: false,
+        isActual: true, // isActive -> isActual
+        isEnabled: true,
+        appleStoreUrl: 'https://apps.apple.com/us/app/ea-sports-fc-mobile-soccer/id1094930513',
+        googlePlayUrl: 'https://play.google.com/store/apps/details?id=com.ea.gp.fifamobile&hl=ru',
+        trailerUrl: 'https://youtu.be/TEuZZB_zSOw',
+      },
+    }),
     prisma.game.create({
       data: {
         title: 'Mobile Legends',

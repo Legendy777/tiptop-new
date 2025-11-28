@@ -39,5 +39,11 @@ export const userMiddleware: MiddlewareFn<any> = async (ctx, next) => {
     await next();
   } catch (error) {
     await loggerMiddleware.logSystemEvent('error', 'User middleware error: ' + error);
+    // Продолжаем обработку даже при ошибке, чтобы команды (например, /start) отвечали
+    try {
+      await next();
+    } catch (nextErr) {
+      await loggerMiddleware.logSystemEvent('error', 'User middleware next() failed: ' + nextErr);
+    }
   }
 };

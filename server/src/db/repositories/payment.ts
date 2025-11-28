@@ -1,20 +1,36 @@
 import { prisma } from '../client';
+import { Prisma, PaymentStatus, Currency } from '@prisma/client';
 import { DatabaseError, NotFoundError } from '../error';
-import { PaymentStatus, Prisma } from '../../../generated/prisma';
+
+type PaymentWithRelations = Prisma.PaymentGetPayload<{
+  include: {
+    user: true;
+    order: true;
+    offer: {
+      include: {
+        game: true;
+      };
+    };
+  };
+}>;
 
 export class PaymentRepository {
-  async findById(id: number) {
+  async findById(id: number | string): Promise<PaymentWithRelations> {
     try {
       const payment = await prisma.payment.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
       if (!payment) {
-        throw new NotFoundError('Payment', id);
+        throw new NotFoundError('Payment', String(id));
       }
       return payment;
     } catch (error) {
@@ -23,16 +39,20 @@ export class PaymentRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<PaymentWithRelations[]> {
     try {
       return await prisma.payment.findMany({
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -40,13 +60,18 @@ export class PaymentRepository {
     }
   }
 
-  async create(data: Prisma.PaymentCreateInput) {
+  async create(data: Prisma.PaymentCreateInput): Promise<PaymentWithRelations> {
     try {
       return await prisma.payment.create({
         data,
         include: {
           user: true,
-          offer: { include: { game: true } },
+          order: true,
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -54,15 +79,19 @@ export class PaymentRepository {
     }
   }
 
-  async update(id: number, data: Prisma.PaymentUpdateInput) {
+  async update(id: number | string, data: Prisma.PaymentUpdateInput): Promise<PaymentWithRelations> {
     try {
       return await prisma.payment.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -70,22 +99,26 @@ export class PaymentRepository {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number | string) {
     try {
-      return await prisma.payment.delete({ where: { id } });
+      return await prisma.payment.delete({ where: { id: Number(id) } });
     } catch (error) {
       throw new DatabaseError('Failed to delete payment', error);
     }
   }
 
-  async findByExternalId(externalId: string) {
+  async findByExternalId(externalId: string): Promise<PaymentWithRelations | null> {
     try {
       return await prisma.payment.findUnique({
         where: { externalId },
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -93,14 +126,19 @@ export class PaymentRepository {
     }
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: number | string): Promise<PaymentWithRelations[]> {
     try {
       return await prisma.payment.findMany({
-        where: { userId },
+        where: { userId: Number(userId) },
         orderBy: { createdAt: 'desc' },
         include: {
+          user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -108,7 +146,7 @@ export class PaymentRepository {
     }
   }
 
-  async findByStatus(status: PaymentStatus) {
+  async findByStatus(status: PaymentStatus): Promise<PaymentWithRelations[]> {
     try {
       return await prisma.payment.findMany({
         where: { status },
@@ -116,7 +154,11 @@ export class PaymentRepository {
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -124,15 +166,19 @@ export class PaymentRepository {
     }
   }
 
-  async updateStatus(id: number, status: PaymentStatus) {
+  async updateStatus(id: number | string, status: PaymentStatus): Promise<PaymentWithRelations> {
     try {
       return await prisma.payment.update({
-        where: { id },
+        where: { id: Number(id) },
         data: { status },
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -140,7 +186,7 @@ export class PaymentRepository {
     }
   }
 
-  async updateStatusByExternalId(externalId: string, status: PaymentStatus) {
+  async updateStatusByExternalId(externalId: string, status: PaymentStatus): Promise<PaymentWithRelations> {
     try {
       return await prisma.payment.update({
         where: { externalId },
@@ -148,7 +194,11 @@ export class PaymentRepository {
         include: {
           user: true,
           order: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -156,14 +206,19 @@ export class PaymentRepository {
     }
   }
 
-  async findPendingPayments() {
+  async findPendingPayments(): Promise<PaymentWithRelations[]> {
     try {
       return await prisma.payment.findMany({
         where: { status: 'pending' },
         orderBy: { createdAt: 'asc' },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          order: true,
+          offer: {
+            include: {
+              game: true,
+            },
+          },
         },
       });
     } catch (error) {
@@ -171,7 +226,7 @@ export class PaymentRepository {
     }
   }
 
-  async countByStatus(status: PaymentStatus) {
+  async countByStatus(status: PaymentStatus): Promise<number> {
     try {
       return await prisma.payment.count({
         where: { status },

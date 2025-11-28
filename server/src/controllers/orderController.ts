@@ -148,11 +148,10 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
         // MONGO BACKUP: });
         // MONGO BACKUP: await transaction.save();
         
-        const transaction = await transactionRepository.createTransaction(
+        const transaction = await transactionRepository.createRefundTransaction(
           payment.userId,
-          payment.amountToPay,
-          payment.currency as 'USDT' | 'RUB',
-          'refund'
+          Number(payment.amountToPay),
+          payment.currency as 'USDT' | 'RUB'
         );
         
         logger.info('Refund transaction created successfully', { context: { transactionId: transaction.id } });

@@ -82,7 +82,7 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
       // MONGO BACKUP: await order.save();
       
       const order = await orderRepository.create({
-        payment: { connect: { id: payment.id } },
+        paymentId: payment.id,
         user: { connect: { id: payment.userId } },
         offer: { connect: { id: payment.offerId } },
         status: 'pending',
@@ -143,7 +143,8 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
       // MONGO BACKUP: }
       // MONGO BACKUP: await chat.save();
       
-      await chatRepository.addMessage(order.userId, message);
+      const chat = await chatRepository.findOrCreate(order.userId);
+      await chatRepository.addMessage(chat.id, message);
 
       const clientSocketId = clients.get(order.userId);
 
@@ -241,7 +242,7 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
       // MONGO BACKUP: await order.save();
       
       const order = await orderRepository.create({
-        payment: { connect: { id: payment.id } },
+        paymentId: payment.id,
         user: { connect: { id: payment.userId } },
         offer: { connect: { id: payment.offerId } },
         status: 'pending',
@@ -302,7 +303,8 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
       // MONGO BACKUP: }
       // MONGO BACKUP: await chat.save();
       
-      await chatRepository.addMessage(order.userId, message);
+      const chat = await chatRepository.findOrCreate(order.userId);
+      await chatRepository.addMessage(chat.id, message);
 
       const clientSocketId = clients.get(order.userId);
 
@@ -366,3 +368,4 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+

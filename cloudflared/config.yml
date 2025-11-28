@@ -1,0 +1,9 @@
+tunnel: tiptop
+credentials-file: /etc/cloudflared/549fe4e4-dfea-467e-85dd-c995b308d646.json
+edge-ip-version: "4"
+no-quic: true
+
+ingress:
+  - hostname: app.tiptop.spb.ru
+    service: http://nginx:80
+  - service: http_status:404

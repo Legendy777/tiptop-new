@@ -1,0 +1,9 @@
+tunnel: 52714189-782b-48c4-9dcf-660cc6c1952b
+credentials-file: C:\Users\dybko\.cloudflared\52714189-782b-48c4-9dcf-660cc6c1952b.json
+edge-ip-version: 4
+no-quic: true
+
+ingress:
+  - hostname: app.tiptop.spb.ru
+    service: http://localhost:80
+  - service: http_status:404

@@ -13,6 +13,44 @@ export class MessageService {
   private userMessageIds: Map<number, number> = new Map();
 
   /**
+   * Нормализует базовый URL веб‑приложения.
+   * Источник берётся из конфигурации, либо из переданного параметра.
+   * Гарантирует корректный формат и отсутствие лишних слэшей.
+   */
+  private getWebAppBaseUrl(preferred?: string): string {
+    const raw = preferred ?? configService.get<string>('webApp.url');
+    // Если значение отсутствует — возвращаем безопасный дефолт
+    if (!raw) return 'https://mobile-games.online/';
+    // Удаляем пробелы и приводим к строке
+    const url = String(raw).trim();
+    // Если нет схемы, добавляем https
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url.replace(/^\/+/, '')}`;
+    }
+    return url;
+  }
+
+  /**
+   * Корректно склеивает базовый URL и относительный путь.
+   * Учитывает наличие/отсутствие завершающего слэша у базового URL.
+   */
+  private joinWebAppPath(baseUrl: string, path: string): string {
+    try {
+      const normalizedPath = path.replace(/^\/+/, '');
+      // Пытаемся собрать через URL API для надёжности
+      const u = new URL(baseUrl);
+      // Не теряем существующий путь, аккуратно добавляем новый сегмент
+      const basePath = u.pathname?.replace(/\/+$/, '') || '';
+      u.pathname = `${basePath}/${normalizedPath}`;
+      return u.toString();
+    } catch {
+      // Фоллбэк если baseUrl не распарсился как валидный URL
+      const cleanedBase = baseUrl.replace(/\/+$/, '');
+      return `${cleanedBase}/${path.replace(/^\/+/, '')}`;
+    }
+  }
+
+  /**
    * Получить локализацию для пользователя
    */
   private getLocalization(language?: string) {
@@ -38,12 +76,12 @@ export class MessageService {
    */
   createPersistentKeyboard(language?: string): ReplyKeyboardMarkup {
     const loc = this.getLocalization(language);
-    const webAppUrl = configService.getString('WEB_APP_URL', 'https://mobile-games.online/');
+    const webAppUrl = this.getWebAppBaseUrl();
     
     return {
       keyboard: [
         [{ text: loc.buttons.menu }],
-        [{ text: loc.buttons.support, web_app: { url: webAppUrl } }]
+        [{ text: loc.buttons.support, web_app: { url: this.joinWebAppPath(webAppUrl, 'chat') } }]
       ],
       resize_keyboard: true,
       is_persistent: true
@@ -59,7 +97,7 @@ export class MessageService {
     // Определяем URL для магазинов
     const googlePlayUrl = game?.googlePlayUrl || 'https://play.google.com';
     const appStoreUrl = game?.appStoreUrl || 'https://apps.apple.com';
-    const webAppUrl = configService.getString('WEB_APP_URL', 'https://mobile-games.online/');
+    const webAppUrl = this.getWebAppBaseUrl();
 
     // Динамическая кнопка Play/Stop
     const playStopButton = isUserPlaying
@@ -83,11 +121,11 @@ export class MessageService {
         ],
         [
           { text: loc.buttons.cabinet, callback_data: 'cabinet' },
-          { text: loc.buttons.about, web_app: { url: webAppUrl + "about" } }
+          { text: loc.buttons.about, web_app: { url: this.joinWebAppPath(webAppUrl, 'about') } }
         ],
         [
-          { text: loc.buttons.support, web_app: { url: webAppUrl + "chat" } },
-          { text: loc.buttons.reviews, web_app: { url: webAppUrl + "reviews" } }
+          { text: loc.buttons.support, web_app: { url: this.joinWebAppPath(webAppUrl, 'chat') } },
+          { text: loc.buttons.reviews, web_app: { url: this.joinWebAppPath(webAppUrl, 'reviews') } }
         ],
         [
           { text: loc.buttons.language, callback_data: 'language' },
@@ -101,19 +139,20 @@ export class MessageService {
    * Создать клавиатуру личного кабинета
    */
   createCabinetKeyboard(l: any, webAppUrl: string): InlineKeyboardMarkup {
+    const base = this.getWebAppBaseUrl(webAppUrl);
     return {
         inline_keyboard: [
             [
-                { text: l.buttons.referralProgram, web_app: { url: webAppUrl } },
-                { text: l.buttons.orders, web_app: { url: webAppUrl } }
+                { text: l.buttons.referralProgram, web_app: { url: base } },
+                { text: l.buttons.orders, web_app: { url: base } }
             ],
             [
                 { text: l.buttons.refresh, callback_data: 'refresh' },
-                { text: l.buttons.withdraw, web_app: { url: webAppUrl } }
+                { text: l.buttons.withdraw, web_app: { url: base } }
             ],
             [
                 { text: l.buttons.back, callback_data: 'back_to_menu' },
-                { text: l.buttons.chat, web_app: { url: webAppUrl } }
+                { text: l.buttons.chat, web_app: { url: base } }
             ]
         ]
     };

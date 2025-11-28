@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-// MONGO BACKUP: import GameOffer from '../models/Offer';
+import { offerRepository, prisma } from '../db';
 import { logger } from '../config/logger';
-import { prisma } from '../db/client';
-import { offerRepository } from '../db';
 
 // -> User
 
@@ -14,27 +12,20 @@ export const getOffersByGameId = async (req: Request, res: Response): Promise<vo
 
     logger.info('Fetching game offers by game ID', { context: { gameId, isEnabled } });
 
-    // MONGO BACKUP: const filter: any = { gameId: gameId };
-    // MONGO BACKUP: if (isEnabled !== undefined) {
-    // MONGO BACKUP:   filter.isEnabled = isEnabled === 'true';
-    // MONGO BACKUP: }
-    // MONGO BACKUP: const gameOffers = await GameOffer.find(filter).sort({ price: 1 });
-
-    const where: any = { gameId: parseInt(gameId) };
-    if (isEnabled !== undefined) {
-      where.isEnabled = isEnabled === 'true';
+    let offers;
+    if (isEnabled === 'true') {
+      offers = await offerRepository.findEnabledByGameId(gameId);
+    } else {
+      offers = await offerRepository.findByGameId(gameId);
     }
 
-    const gameOffers = await prisma.offer.findMany({
-      where,
-      orderBy: { priceRUB: 'asc' },
-      include: { game: true }
-    });
+    // Sort by priceRUB
+    offers.sort((a, b) => Number(a.priceRUB) - Number(b.priceRUB));
 
     logger.info('Game offers fetched successfully by game ID', {
-      context: { gameId, count: gameOffers.length },
+      context: { gameId, count: offers.length },
     });
-    res.status(200).json(gameOffers);
+    res.status(200).json(offers);
   } catch (error) {
     logger.error(`Error fetching game offers for game ID ${req.params.gameId}`, { context: { error } });
     res.status(500).json({ message: 'Failed to fetch game offers', error });
@@ -47,8 +38,7 @@ export const getOfferById = async (req: Request, res: Response): Promise<void> =
     const { id } = req.params;
     logger.info('Fetching game offer by ID', { context: { offerId: id } });
 
-    // MONGO BACKUP: const gameOffer = await GameOffer.findById(id);
-    const gameOffer = await offerRepository.findById(parseInt(id));
+    const gameOffer = await offerRepository.findById(id);
 
     if (!gameOffer) {
       logger.warn('Game offer not found', { context: { offerId: id } });
@@ -78,7 +68,6 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // MONGO BACKUP: const existingGameOffer = await GameOffer.findOne({ gameId, title });
     const existingGameOffer = await prisma.offer.findFirst({
       where: {
         gameId: parseInt(gameId),
@@ -101,18 +90,8 @@ export const createOffer = async (req: Request, res: Response): Promise<void> =>
     if (typeof priceUSDT !== 'number' || typeof priceRUB !== 'number') {
       logger.warn('Invalid price type', { context: { priceRUB, priceUSDT } });
       res.status(400).json({ message: 'Invalid price type' });
+      return;
     }
-
-    // MONGO BACKUP: const gameOffer = new GameOffer({
-    // MONGO BACKUP:   _id,
-    // MONGO BACKUP:   gameId,
-    // MONGO BACKUP:   title,
-    // MONGO BACKUP:   imageUrl,
-    // MONGO BACKUP:   priceRUB,
-    // MONGO BACKUP:   priceUSDT,
-    // MONGO BACKUP:   isEnabled: isEnabled !== undefined ? isEnabled : true,
-    // MONGO BACKUP: });
-    // MONGO BACKUP: await gameOffer.save();
 
     const gameOffer = await offerRepository.create({
       game: { connect: { id: parseInt(gameId) } },
@@ -137,8 +116,7 @@ export const updateOffer = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
     logger.info('Updating game offer', { context: { offerId: id, body: req.body } });
 
-    // MONGO BACKUP: const gameOffer = await GameOffer.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
-    const gameOffer = await offerRepository.update(parseInt(id), req.body);
+    const gameOffer = await offerRepository.update(id, req.body);
 
     if (!gameOffer) {
       logger.warn('Game offer not found for update', { context: { offerId: id } });
@@ -160,16 +138,9 @@ export const deleteOffer = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
     logger.info('Deleting game offer', { context: { offerId: id } });
 
-    // MONGO BACKUP: const gameOffer = await GameOffer.findByIdAndDelete(id);
-    const gameOffer = await offerRepository.delete(parseInt(id));
+    await offerRepository.delete(id);
 
-    if (!gameOffer) {
-      logger.warn('Game offer not found for deletion', { context: { offerId: id } });
-      res.status(404).json({ message: 'Game offer not found' });
-      return;
-    }
-
-    logger.info('Game offer deleted successfully', { context: { offerId: gameOffer.id } });
+    logger.info('Game offer deleted successfully', { context: { offerId: id } });
     res.status(200).json({ message: 'Game offer deleted successfully' });
   } catch (error) {
     logger.error(`Error deleting game offer with ID ${req.params.id}`, { context: { error } });

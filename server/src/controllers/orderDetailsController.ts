@@ -169,7 +169,8 @@ export const updateOrderDetailsByOrderId = async (req: Request, res: Response) =
     // MONGO BACKUP: }
     // MONGO BACKUP: await chat.save();
     
-    await chatRepository.addMessage(order.userId, message);
+    const chat = await chatRepository.findOrCreate(order.userId);
+    await chatRepository.addMessage(chat.id, message);
 
     const clientSocketId = clients.get(order.userId);
 
@@ -189,3 +190,4 @@ export const updateOrderDetailsByOrderId = async (req: Request, res: Response) =
     res.status(500).json({ message: 'Error updating order details', error });
   }
 };
+

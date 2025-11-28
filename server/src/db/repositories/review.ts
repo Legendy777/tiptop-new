@@ -1,19 +1,30 @@
 import { prisma } from '../client';
 import { DatabaseError, NotFoundError } from '../error';
-import { Prisma } from '../../../generated/prisma';
+import { Prisma } from '@prisma/client';
+
+type ReviewWithRelations = Prisma.ReviewGetPayload<{
+  include: {
+    user: true;
+    order: {
+      include: {
+        offer: { include: { game: true } };
+      };
+    };
+  };
+}>;
 
 export class ReviewRepository {
-  async findById(id: number) {
+  async findById(id: number | string): Promise<ReviewWithRelations> {
     try {
       const review = await prisma.review.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
           user: true,
           order: { include: { offer: { include: { game: true } } } },
         },
       });
       if (!review) {
-        throw new NotFoundError('Review', id);
+        throw new NotFoundError('Review', String(id));
       }
       return review;
     } catch (error) {
@@ -22,12 +33,12 @@ export class ReviewRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<ReviewWithRelations[]> {
     try {
       return await prisma.review.findMany({
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
         include: {
           user: true,
           order: { include: { offer: { include: { game: true } } } },
@@ -38,7 +49,7 @@ export class ReviewRepository {
     }
   }
 
-  async create(data: Prisma.ReviewCreateInput) {
+  async create(data: Prisma.ReviewCreateInput): Promise<ReviewWithRelations> {
     try {
       return await prisma.review.create({
         data,
@@ -52,10 +63,10 @@ export class ReviewRepository {
     }
   }
 
-  async update(id: number, data: Prisma.ReviewUpdateInput) {
+  async update(id: number | string, data: Prisma.ReviewUpdateInput): Promise<ReviewWithRelations> {
     try {
       return await prisma.review.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
         include: {
           user: true,
@@ -67,20 +78,21 @@ export class ReviewRepository {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number | string) {
     try {
-      return await prisma.review.delete({ where: { id } });
+      return await prisma.review.delete({ where: { id: Number(id) } });
     } catch (error) {
       throw new DatabaseError('Failed to delete review', error);
     }
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: number | string): Promise<ReviewWithRelations[]> {
     try {
       return await prisma.review.findMany({
-        where: { userId },
+        where: { userId: Number(userId) },
         orderBy: { createdAt: 'desc' },
         include: {
+          user: true,
           order: { include: { offer: { include: { game: true } } } },
         },
       });
@@ -89,10 +101,10 @@ export class ReviewRepository {
     }
   }
 
-  async findByOrderId(orderId: number) {
+  async findByOrderId(orderId: number | string): Promise<ReviewWithRelations | null> {
     try {
       return await prisma.review.findUnique({
-        where: { orderId },
+        where: { orderId: Number(orderId) },
         include: {
           user: true,
           order: { include: { offer: { include: { game: true } } } },
@@ -103,7 +115,7 @@ export class ReviewRepository {
     }
   }
 
-  async findByRating(rating: number) {
+  async findByRating(rating: number): Promise<ReviewWithRelations[]> {
     try {
       return await prisma.review.findMany({
         where: { rating },
@@ -118,18 +130,18 @@ export class ReviewRepository {
     }
   }
 
-  async getAverageRating() {
+  async getAverageRating(): Promise<number> {
     try {
-      const result = await prisma.review.aggregate({
+      const aggregate = await prisma.review.aggregate({
         _avg: { rating: true },
       });
-      return result._avg.rating || 0;
+      return aggregate._avg.rating || 0;
     } catch (error) {
       throw new DatabaseError('Failed to get average rating', error);
     }
   }
 
-  async countByRating(rating: number) {
+  async countByRating(rating: number): Promise<number> {
     try {
       return await prisma.review.count({
         where: { rating },
@@ -139,11 +151,11 @@ export class ReviewRepository {
     }
   }
 
-  async getLatestReviews(limit: number = 10) {
+  async getLatestReviews(limit: number = 10): Promise<ReviewWithRelations[]> {
     try {
       return await prisma.review.findMany({
-        take: limit,
         orderBy: { createdAt: 'desc' },
+        take: limit,
         include: {
           user: true,
           order: { include: { offer: { include: { game: true } } } },

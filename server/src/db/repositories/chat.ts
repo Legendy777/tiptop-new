@@ -1,21 +1,26 @@
 import { prisma } from '../client';
+import { Prisma, Chat as PrismaChat, ChatMessage } from '../../../generated/prisma';
 import { DatabaseError, NotFoundError } from '../error';
-import { Prisma } from '../../../generated/prisma';
+
+type ChatWithRelations = Prisma.ChatGetPayload<{
+  include: {
+    user: true;
+    messages: true;
+  };
+}>;
 
 export class ChatRepository {
-  async findById(id: number) {
+  async findById(id: number | string): Promise<ChatWithRelations> {
     try {
       const chat = await prisma.chat.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
           user: true,
-          messages: {
-            orderBy: { timestamp: 'asc' },
-          },
+          messages: { orderBy: { timestamp: 'asc' } },
         },
       });
       if (!chat) {
-        throw new NotFoundError('Chat', id);
+        throw new NotFoundError('Chat', String(id));
       }
       return chat;
     } catch (error) {
@@ -24,18 +29,15 @@ export class ChatRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<ChatWithRelations[]> {
     try {
       return await prisma.chat.findMany({
+        orderBy: { updatedAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { updatedAt: 'desc' },
         include: {
           user: true,
-          messages: {
-            orderBy: { timestamp: 'desc' },
-            take: 1,
-          },
+          messages: { orderBy: { timestamp: 'desc' }, take: 1 },
         },
       });
     } catch (error) {
@@ -43,7 +45,7 @@ export class ChatRepository {
     }
   }
 
-  async create(data: Prisma.ChatCreateInput) {
+  async create(data: Prisma.ChatCreateInput): Promise<ChatWithRelations> {
     try {
       return await prisma.chat.create({
         data,
@@ -57,16 +59,14 @@ export class ChatRepository {
     }
   }
 
-  async update(id: number, data: Prisma.ChatUpdateInput) {
+  async update(id: number | string, data: Prisma.ChatUpdateInput): Promise<ChatWithRelations> {
     try {
       return await prisma.chat.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
         include: {
           user: true,
-          messages: {
-            orderBy: { timestamp: 'asc' },
-          },
+          messages: { orderBy: { timestamp: 'asc' } },
         },
       });
     } catch (error) {
@@ -74,23 +74,21 @@ export class ChatRepository {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number | string): Promise<PrismaChat> {
     try {
-      return await prisma.chat.delete({ where: { id } });
+      return await prisma.chat.delete({ where: { id: Number(id) } });
     } catch (error) {
       throw new DatabaseError('Failed to delete chat', error);
     }
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: number | string): Promise<ChatWithRelations | null> {
     try {
       return await prisma.chat.findUnique({
-        where: { userId },
+        where: { userId: Number(userId) },
         include: {
           user: true,
-          messages: {
-            orderBy: { timestamp: 'asc' },
-          },
+          messages: { orderBy: { timestamp: 'asc' } },
         },
       });
     } catch (error) {
@@ -100,99 +98,85 @@ export class ChatRepository {
 
   async addMessage(chatId: number, messageData: Omit<Prisma.ChatMessageCreateInput, 'chat'>) {
     try {
+      const chat = await prisma.chat.findUnique({ where: { id: Number(chatId) } });
+      if (!chat) throw new NotFoundError('Chat', String(chatId));
       return await prisma.chatMessage.create({
-        data: {
-          ...messageData,
-          chat: { connect: { id: chatId } },
-        },
+        data: { ...messageData, chat: { connect: { id: Number(chatId) } } },
       });
     } catch (error) {
       throw new DatabaseError('Failed to add message to chat', error);
     }
   }
 
-  async getMessages(chatId: number, limit?: number, offset?: number) {
+  async getMessages(chatId: number | string, limit?: number, offset?: number): Promise<ChatMessage[]> {
     try {
       return await prisma.chatMessage.findMany({
-        where: { chatId },
-        take: limit,
-        skip: offset,
+        where: { chatId: Number(chatId) },
         orderBy: { timestamp: 'asc' },
+        skip: offset,
+        take: limit,
       });
     } catch (error) {
       throw new DatabaseError('Failed to get chat messages', error);
     }
   }
 
-  async markAsReadByUser(chatId: number) {
+  async markAsReadByUser(chatId: number | string): Promise<PrismaChat> {
     try {
       return await prisma.chat.update({
-        where: { id: chatId },
-        data: {
-          lastReadByUser: new Date(),
-        },
+        where: { id: Number(chatId) },
+        data: { lastReadByUser: new Date() },
       });
     } catch (error) {
       throw new DatabaseError('Failed to mark chat as read by user', error);
     }
   }
 
-  async markAsReadByAdmin(chatId: number) {
+  async markAsReadByAdmin(chatId: number | string): Promise<PrismaChat> {
     try {
       return await prisma.chat.update({
-        where: { id: chatId },
-        data: {
-          lastReadByAdmin: new Date(),
-          unreadAdminCount: 0,
-        },
+        where: { id: Number(chatId) },
+        data: { lastReadByAdmin: new Date(), unreadAdminCount: 0 },
       });
     } catch (error) {
       throw new DatabaseError('Failed to mark chat as read by admin', error);
     }
   }
 
-  async incrementUnreadAdminCount(chatId: number) {
+  async incrementUnreadAdminCount(chatId: number | string): Promise<PrismaChat> {
     try {
       return await prisma.chat.update({
-        where: { id: chatId },
-        data: {
-          unreadAdminCount: { increment: 1 },
-        },
+        where: { id: Number(chatId) },
+        data: { unreadAdminCount: { increment: 1 } },
       });
     } catch (error) {
       throw new DatabaseError('Failed to increment unread admin count', error);
     }
   }
 
-  async getUnreadChatsCount() {
+  async getUnreadChatsCount(): Promise<number> {
     try {
       return await prisma.chat.count({
-        where: {
-          unreadAdminCount: { gt: 0 },
-        },
+        where: { unreadAdminCount: { gt: 0 } },
       });
     } catch (error) {
       throw new DatabaseError('Failed to get unread chats count', error);
     }
   }
 
-  async findOrCreate(userId: number) {
+  async findOrCreate(userId: number | string): Promise<ChatWithRelations> {
     try {
       let chat = await prisma.chat.findUnique({
-        where: { userId },
+        where: { userId: Number(userId) },
         include: {
           user: true,
-          messages: {
-            orderBy: { timestamp: 'asc' },
-          },
+          messages: { orderBy: { timestamp: 'asc' } },
         },
       });
 
       if (!chat) {
         chat = await prisma.chat.create({
-          data: {
-            user: { connect: { id: userId } },
-          },
+          data: { user: { connect: { id: Number(userId) } } },
           include: {
             user: true,
             messages: true,
@@ -208,3 +192,4 @@ export class ChatRepository {
 }
 
 export const chatRepository = new ChatRepository();
+

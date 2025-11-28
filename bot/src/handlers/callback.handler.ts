@@ -124,7 +124,7 @@ async function handleCabinet(ctx: Context) {
     }
 
   const l = localization(user.language);
-  const webAppUrl = configService.getString('WEB_APP_URL', 'https://mobile-games.online/');
+  const webAppUrl = configService.get<string>('webApp.url');
   
   stopSlideshowForUser(userId.toString());
   

@@ -1,6 +1,6 @@
 import {NextFunction, Request, Response} from "express";
 import console from "node:console";
-import User, {IUser} from "../models/User";
+import { userRepository } from '../db';
 import {logger} from "../config/logger";
 
 export const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
@@ -11,14 +11,15 @@ export const isAdmin = async (req: Request, res: Response, next: NextFunction) =
             return res.status(401).json({ message: 'Missing userId' });
         }
 
-        const user: any = await User.findById(userId);
+        const user = await userRepository.findByTelegramId(userId);
 
         if (!user) {
             return res.status(401).json({ message: 'Invalid user data' });
         }
 
-        if (!user.isAdmin) {
-            return res.status(401).json({ message: 'User is not admin' });
+        // Check if user ID matches ADMIN_ID
+        if (user.id !== Number(process.env.ADMIN_ID)) {
+            return res.status(403).json({ message: 'User is not admin' });
         }
 
         next();

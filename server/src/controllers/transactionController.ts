@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 // MONGO BACKUP: import Transaction from "../models/Transaction";
 // MONGO BACKUP: import User from '../models/User';
 import { prisma } from '../db/client';
+import type { Prisma } from '@prisma/client';
 import { transactionRepository } from '../db';
 
 export const getTransactionsByRefer = async (req: Request, res: Response) => {
@@ -19,7 +20,8 @@ export const getTransactionsByRefer = async (req: Request, res: Response) => {
         // MONGO BACKUP:     username: userMap.get(tx.userId.toString()) || null,
         // MONGO BACKUP: }));
 
-        const transactionsWithUsername = transactions.map(tx => ({
+        type TxWithUser = Prisma.TransactionGetPayload<{ include: { user: true } }>;
+        const transactionsWithUsername = transactions.map((tx: TxWithUser) => ({
             ...tx,
             username: tx.user?.username || null,
         }));

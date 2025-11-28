@@ -1,16 +1,20 @@
 import { prisma } from '../client';
+import { Prisma } from '@prisma/client';
 import { DatabaseError, NotFoundError } from '../error';
-import { Prisma } from '../../../generated/prisma';
+
+type GameWithOffers = Prisma.GameGetPayload<{
+  include: { offers: true };
+}>;
 
 export class GameRepository {
-  async findById(id: number) {
+  async findById(id: number): Promise<GameWithOffers> {
     try {
       const game = await prisma.game.findUnique({
         where: { id },
         include: { offers: true },
       });
       if (!game) {
-        throw new NotFoundError('Game', id);
+        throw new NotFoundError('Game', String(id));
       }
       return game;
     } catch (error) {
@@ -19,12 +23,12 @@ export class GameRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<GameWithOffers[]> {
     try {
       return await prisma.game.findMany({
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
         include: { offers: true },
       });
     } catch (error) {
@@ -32,26 +36,30 @@ export class GameRepository {
     }
   }
 
-  async create(data: Prisma.GameCreateInput) {
+  async create(data: Prisma.GameCreateInput): Promise<GameWithOffers> {
     try {
-      return await prisma.game.create({ data });
+      return await prisma.game.create({
+        data,
+        include: { offers: true },
+      });
     } catch (error) {
       throw new DatabaseError('Failed to create game', error);
     }
   }
 
-  async update(id: number, data: Prisma.GameUpdateInput) {
+  async update(id: number, data: Prisma.GameUpdateInput): Promise<GameWithOffers> {
     try {
       return await prisma.game.update({
         where: { id },
         data,
+        include: { offers: true },
       });
     } catch (error) {
       throw new DatabaseError('Failed to update game', error);
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number): Promise<Prisma.GameGetPayload<{}>> {
     try {
       return await prisma.game.delete({ where: { id } });
     } catch (error) {
@@ -59,7 +67,7 @@ export class GameRepository {
     }
   }
 
-  async findEnabled() {
+  async findEnabled(): Promise<GameWithOffers[]> {
     try {
       return await prisma.game.findMany({
         where: { isEnabled: true },
@@ -71,13 +79,10 @@ export class GameRepository {
     }
   }
 
-  async findActual() {
+  async findActual(): Promise<GameWithOffers[]> {
     try {
       return await prisma.game.findMany({
-        where: {
-          isEnabled: true,
-          isActual: true,
-        },
+        where: { isEnabled: true, isActual: true },
         include: { offers: { where: { isEnabled: true } } },
         orderBy: { createdAt: 'desc' },
       });
@@ -86,13 +91,10 @@ export class GameRepository {
     }
   }
 
-  async findWithDiscount() {
+  async findWithDiscount(): Promise<GameWithOffers[]> {
     try {
       return await prisma.game.findMany({
-        where: {
-          isEnabled: true,
-          hasDiscount: true,
-        },
+        where: { isEnabled: true, hasDiscount: true },
         include: { offers: { where: { isEnabled: true } } },
         orderBy: { createdAt: 'desc' },
       });
@@ -101,36 +103,39 @@ export class GameRepository {
     }
   }
 
-  async toggleEnabled(id: number) {
+  async toggleEnabled(id: number): Promise<GameWithOffers> {
     try {
       const game = await this.findById(id);
       return await prisma.game.update({
         where: { id },
         data: { isEnabled: !game.isEnabled },
+        include: { offers: true },
       });
     } catch (error) {
       throw new DatabaseError('Failed to toggle game enabled status', error);
     }
   }
 
-  async toggleActual(id: number) {
+  async toggleActual(id: number): Promise<GameWithOffers> {
     try {
       const game = await this.findById(id);
       return await prisma.game.update({
         where: { id },
         data: { isActual: !game.isActual },
+        include: { offers: true },
       });
     } catch (error) {
       throw new DatabaseError('Failed to toggle game actual status', error);
     }
   }
 
-  async toggleDiscount(id: number) {
+  async toggleDiscount(id: number): Promise<GameWithOffers> {
     try {
       const game = await this.findById(id);
       return await prisma.game.update({
         where: { id },
         data: { hasDiscount: !game.hasDiscount },
+        include: { offers: true },
       });
     } catch (error) {
       throw new DatabaseError('Failed to toggle game discount status', error);

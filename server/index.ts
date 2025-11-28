@@ -8,11 +8,7 @@ import morgan from 'morgan';
 import http from 'http'; // CHANGED: Was https, now http
 import { Server } from 'socket.io';
 
-// --- fs is no longer needed, can be removed or kept, it's unused ---
-// import fs from 'fs';
-
-// MONGO BACKUP: import { connectDB } from './src/config/database';
-import { connectDatabase, chatRepository, orderRepository, gameRepository, offerRepository, paymentRepository, referralRepository, userRepository } from './src/db';
+import { connectDatabase, chatRepository, orderRepository, gameRepository, offerRepository, paymentRepository, referralRepository, userRepository, prisma } from './src/db';
 import { logger, stream } from './src/config/logger';
 
 import gameRoutes from './src/routes/gameRoutes';
@@ -29,20 +25,12 @@ import referralRoutes from './src/routes/referralRoutes';
 import transactionRoutes from './src/routes/transactionRoutes';
 import adminRoutes from './src/routes/adminRoutes';
 
-// MONGO BACKUP: import { Chat, IMessage } from "./src/models/Chat";
-// MONGO BACKUP: import Order, { IOrder } from "./src/models/Order";
-// MONGO BACKUP: import Offer from "./src/models/Offer";
-// MONGO BACKUP: import Game from "./src/models/Game";
-// MONGO BACKUP: import Payment from "./src/models/Payment";
-import process from "node:process";
-// MONGO BACKUP: import Referral from "./src/models/Referral";
-// MONGO BACKUP: import User from "./src/models/User";
 import axios from "axios";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000; // CHANGED: Port for internal use
+const PORT = process.env.PORT || 3001; // Use 3001 by default to match Docker compose
 
 // --- ENTIRE BLOCK WITH SSL CERTIFICATES REMOVED ---
 
@@ -88,34 +76,37 @@ io.on('connection', socket => {
         clients.set(userId, socket.id);
         socket.join(`userId-${userId}`);
 
-        // MONGO BACKUP: let chat = await Chat.findOne({ userId });
-        // MONGO BACKUP: if (chat) {
-        // MONGO BACKUP:     chat.lastReadByUser = new Date();
-        // MONGO BACKUP:     chat.unreadAdminCount = 0;
-        // MONGO BACKUP:     await chat.save();
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     socket.emit('chat_history', chat.messages);
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     const unreadCount = chat.messages.filter(
-        // MONGO BACKUP:         m => m.timestamp > (chat.lastReadByUser || new Date(0)) && m.sender === 0
-        // MONGO BACKUP:     ).length;
-        // MONGO BACKUP:     socket.emit('unread_count', unreadCount);
-        // MONGO BACKUP: } else {
-        // MONGO BACKUP:     socket.emit('chat_history', []);
-        // MONGO BACKUP:     socket.emit('unread_count', 0);
-        // MONGO BACKUP: }
+        try {
+            const user = await userRepository.findByTelegramId(userId);
+            if (!user) {
+                socket.emit('chat_history', []);
+                socket.emit('unread_count', 0);
+                return;
+            }
 
-        let chat = await chatRepository.findByUserId(userId);
-        if (chat) {
-            await chatRepository.markAsReadByUser(chat.id);
+            let chat = await chatRepository.findByUserId(user.id);
             
-            socket.emit('chat_history', chat.messages);
-            
-            const unreadCount = chat.messages.filter(
-                m => m.timestamp > (chat.lastReadByUser || new Date(0)) && m.sender === 0
-            ).length;
-            socket.emit('unread_count', unreadCount);
-        } else {
+            if (chat) {
+                await chatRepository.markAsReadByUser(chat.id);
+                await chatRepository.update(chat.id, { 
+                    unreadAdminCount: 0 
+                });
+                
+                const messages = await chatRepository.getMessages(chat.id);
+                
+                socket.emit('chat_history', messages);
+
+                const lastRead = chat.lastReadByUser || new Date(0);
+                const unreadCount = messages.filter(
+                    m => m.timestamp > lastRead && m.sender === 0
+                ).length;
+                socket.emit('unread_count', unreadCount);
+            } else {
+                socket.emit('chat_history', []);
+                socket.emit('unread_count', 0);
+            }
+        } catch (error) {
+            logger.error('Error in register_client', { error, userId });
             socket.emit('chat_history', []);
             socket.emit('unread_count', 0);
         }
@@ -123,142 +114,148 @@ io.on('connection', socket => {
 
     socket.on('register_admin', async () => {
         socket.join('admin');
-        // MONGO BACKUP: const allChats = await Chat.find({});
-        // MONGO BACKUP: const chatMap: Record<number, IMessage[]> = {};
-        // MONGO BACKUP: const unreadCounts: Record<number, number> = {};
-        // MONGO BACKUP: 
-        // MONGO BACKUP: allChats.forEach(chat => {
-        // MONGO BACKUP:     chatMap[chat.userId] = chat.messages;
-        // MONGO BACKUP:     unreadCounts[chat.userId] = chat.unreadAdminCount;
-        // MONGO BACKUP: });
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const orders: IOrder[] = await Order.find();
-        // MONGO BACKUP: 
-        // MONGO BACKUP: socket.emit('chat_history', chatMap);
-        // MONGO BACKUP: socket.emit('orders_history', orders);
-        // MONGO BACKUP: socket.emit('unread_counts', unreadCounts);
+        
+        try {
+            const allChats = await chatRepository.findAll();
+            const chatMap: Record<number, any[]> = {};
+            const unreadCounts: Record<number, number> = {};
 
-        const allChats = await chatRepository.findAll();
-        const chatMap: Record<number, any[]> = {};
-        const unreadCounts: Record<number, number> = {};
-        
-        allChats.forEach(chat => {
-            chatMap[chat.userId] = chat.messages;
-            unreadCounts[chat.userId] = chat.unreadAdminCount;
-        });
-        
-        const orders = await orderRepository.findAll();
-        
-        socket.emit('chat_history', chatMap);
-        socket.emit('orders_history', orders);
-        socket.emit('unread_counts', unreadCounts);
+            for (const chat of allChats) {
+                const messages = await chatRepository.getMessages(chat.id);
+                chatMap[Number(chat.user.telegramId)] = messages;
+                unreadCounts[Number(chat.user.telegramId)] = chat.unreadAdminCount;
+            }
+
+            const orders = await orderRepository.findAll();
+
+            socket.emit('chat_history', chatMap);
+            socket.emit('orders_history', orders);
+            socket.emit('unread_counts', unreadCounts);
+        } catch (error) {
+            logger.error('Error in register_admin', { error });
+            socket.emit('chat_history', {});
+            socket.emit('orders_history', []);
+            socket.emit('unread_counts', {});
+        }
     });
 
     socket.on('admin_select_chat', async (userId: number) => {
-        // MONGO BACKUP: const chat = await Chat.findOne({ userId });
-        // MONGO BACKUP: if (chat) {
-        // MONGO BACKUP:     chat.lastReadByAdmin = new Date();
-        // MONGO BACKUP:     chat.unreadAdminCount = 0;
-        // MONGO BACKUP:     await chat.save();
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     socket.emit('chat_history', chat.messages);
-        // MONGO BACKUP:     socket.emit('unread_count', 0);
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     io.to('admin').emit('update_unread_count', { userId, unreadAdmin: 0 });
-        // MONGO BACKUP: }
+        try {
+            const user = await userRepository.findByTelegramId(userId);
+            if (!user) return;
 
-        const chat = await chatRepository.findByUserId(userId);
-        if (chat) {
-            await chatRepository.markAsReadByAdmin(chat.id);
-            
-            socket.emit('chat_history', chat.messages);
-            socket.emit('unread_count', 0);
-            
-            io.to('admin').emit('update_unread_count', { userId, unreadAdmin: 0 });
+            const chat = await chatRepository.findByUserId(user.id);
+            if (chat) {
+                await chatRepository.markAsReadByAdmin(chat.id);
+                const messages = await chatRepository.getMessages(chat.id);
+
+                socket.emit('chat_history', messages);
+                socket.emit('unread_count', 0);
+
+                io.to('admin').emit('update_unread_count', { userId, unreadAdmin: 0 });
+            }
+        } catch (error) {
+            logger.error('Error in admin_select_chat', { error, userId });
         }
     });
 
     socket.on('send_message', async ({ sender, userId, content }) => {
-        // MONGO BACKUP: const message: IMessage = { sender, content, timestamp: new Date(), isSystemMessage: false };
-        // MONGO BACKUP: 
-        // MONGO BACKUP: let chat = await Chat.findOne({ userId });
-        // MONGO BACKUP: if (!chat) {
-        // MONGO BACKUP:     chat = new Chat({
-        // MONGO BACKUP:         userId,
-        // MONGO BACKUP:         messages: [message],
-        // MONGO BACKUP:         lastReadByUser: new Date(),
-        // MONGO BACKUP:         lastReadByAdmin: new Date(0),
-        // MONGO BACKUP:         unreadAdminCount: sender !== 0 ? 1 : 0,
-        // MONGO BACKUP:     });
-        // MONGO BACKUP: } else {
-        // MONGO BACKUP:     chat.messages.push(message);
-        // MONGO BACKUP:     if (sender !== 0) chat.unreadAdminCount = (chat.unreadAdminCount || 0) + 1;
-        // MONGO BACKUP: }
-        // MONGO BACKUP: await chat.save();
-        // MONGO BACKUP: 
-        // MONGO BACKUP: io.to('admin').emit('new_message', { ...message, userId, unreadAdmin: chat.unreadAdminCount });
+        try {
+            const user = await userRepository.findByTelegramId(userId);
+            if (!user) {
+                logger.error('User not found in send_message', { userId });
+                return;
+            }
 
-        let chat = await chatRepository.findOrCreate(userId);
-        
-        const message = await chatRepository.addMessage(chat.id, {
-            sender,
-            content,
-            timestamp: new Date(),
-            isSystemMessage: false,
-        });
-        
-        if (sender !== 0) {
-            await chatRepository.incrementUnreadAdminCount(chat.id);
-            chat = await chatRepository.findById(chat.id);
+            let chat = await chatRepository.findByUserId(user.id);
+            
+            if (!chat) {
+                chat = await chatRepository.create({
+                    user: { connect: { id: user.id } },
+                    lastReadByUser: new Date(),
+                    lastReadByAdmin: new Date(0),
+                    unreadAdminCount: sender !== 0 ? 1 : 0,
+                    messages: {
+                        create: {
+                            sender,
+                            content,
+                            timestamp: new Date(),
+                            isSystemMessage: false,
+                        }
+                    }
+                });
+            } else {
+                await chatRepository.addMessage(chat.id, {
+                    sender,
+                    content,
+                    timestamp: new Date(),
+                    isSystemMessage: false,
+                });
+
+                if (sender !== 0) {
+                    await chatRepository.incrementUnreadAdminCount(chat.id);
+                }
+            }
+
+            const updatedChat = await chatRepository.findByUserId(user.id);
+            const message = {
+                sender,
+                content,
+                timestamp: new Date(),
+                isSystemMessage: false,
+            };
+
+            io.to('admin').emit('new_message', { 
+                ...message, 
+                userId, 
+                unreadAdmin: updatedChat?.unreadAdminCount || 0 
+            });
+        } catch (error) {
+            logger.error('Error in send_message', { error, userId, content });
         }
-        
-        io.to('admin').emit('new_message', { ...message, userId, unreadAdmin: chat.unreadAdminCount });
     });
 
     socket.on('admin_reply', async ({ userId, content }) => {
-        // MONGO BACKUP: const message: IMessage = { sender: 0, content, timestamp: new Date(), isSystemMessage: false };
-        // MONGO BACKUP: const chat = await Chat.findOne({ userId });
-        // MONGO BACKUP: if (chat) {
-        // MONGO BACKUP:     chat.messages.push(message);
-        // MONGO BACKUP:     await chat.save();
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     const clientSocketId = clients.get(userId);
-        // MONGO BACKUP:     if (clientSocketId) io.to(clientSocketId).emit('new_message', { ...message });
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     const botToken = process.env.BOT_TOKEN;
-        // MONGO BACKUP:     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     await axios.post(url, {
-        // MONGO BACKUP:         chat_id: userId,
-        // MONGO BACKUP:         text: `В чате появилось новое сообщение.`,
-        // MONGO BACKUP:         reply_markup: {
-        // MONGO BACKUP:             inline_keyboard: [[
-        // MONGO BACKUP:                 {
-        // MONGO BACKUP:                     text: "💬 Чат",
-        // MONGO BACKUP:                     web_app: {
-        // MONGO BACKUP:                         url: process.env.CLIENT_URL + "/chat"
-        // MONGO BACKUP:                     }
-        // MONGO BACKUP:                 }
-        // MONGO BACKUP:             ]]
-        // MONGO BACKUP:         }
-        // MONGO BACKUP:     });
-        // MONGO BACKUP: }
+        try {
+            const user = await userRepository.findByTelegramId(userId);
+            if (!user) {
+                logger.error('User not found in admin_reply', { userId });
+                return;
+            }
 
-        const chat = await chatRepository.findByUserId(userId);
-        if (chat) {
-            const message = await chatRepository.addMessage(chat.id, {
+            let chat = await chatRepository.findByUserId(user.id);
+            
+            if (!chat) {
+                chat = await chatRepository.create({
+                    user: { connect: { id: user.id } },
+                    lastReadByUser: new Date(0),
+                    lastReadByAdmin: new Date(),
+                    unreadAdminCount: 0,
+                });
+            }
+
+            await chatRepository.addMessage(chat.id, {
                 sender: 0,
                 content,
                 timestamp: new Date(),
                 isSystemMessage: false,
             });
-            
+
+            const message = { 
+                sender: 0, 
+                content, 
+                timestamp: new Date(), 
+                isSystemMessage: false 
+            };
+
             const clientSocketId = clients.get(userId);
-            if (clientSocketId) io.to(clientSocketId).emit('new_message', { ...message });
-            
+            if (clientSocketId) {
+                io.to(clientSocketId).emit('new_message', message);
+            }
+
             const botToken = process.env.BOT_TOKEN;
             const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            
+
             await axios.post(url, {
                 chat_id: userId,
                 text: `В чате появилось новое сообщение.`,
@@ -273,201 +270,136 @@ io.on('connection', socket => {
                     ]]
                 }
             });
+        } catch (error) {
+            logger.error('Error in admin_reply', { error, userId, content });
         }
     });
 
     socket.on('admin_order_status_changed', async (data: { orderId: string }) => {
-        // MONGO BACKUP: if (!data.orderId) return;
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const id = Number(data.orderId);
-        // MONGO BACKUP: if (isNaN(id)) return;
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const order = await Order.findOne({ _id: id });
-        // MONGO BACKUP: if (!order) return;
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const offer = await Offer.findOne({ _id: order.offerId });
-        // MONGO BACKUP: const game = await Game.findOne({ _id: offer?.gameId });
-        // MONGO BACKUP: const payment = await Payment.findOne({ orderId: order._id });
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const orderMsg = `📦 *Order status changed*\n🆔 Order ID: ${order._id}\n🎮 Game: ${game?.title}\n🎮 Offer: ${offer?.title}\n💰 Amount: ${payment?.amountToPay} ${order.currency}\n📌 Status: ${order.status.toUpperCase()}\n🕒 Created: ${new Date(order.createdAt).toLocaleString()}\n🕒 Modified: ${new Date(order.updatedAt).toLocaleString()}\n`;
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const message: IMessage = { sender: -1, content: orderMsg, timestamp: new Date(), isSystemMessage: true };
-        // MONGO BACKUP: const message2: IMessage = { sender: -1, content: "Please leave a review for order №" + order._id, timestamp: new Date(), isSystemMessage: true };
-        // MONGO BACKUP: 
-        // MONGO BACKUP: let chat = await Chat.findOne({ userId: order.userId });
-        // MONGO BACKUP: if (!chat) {
-        // MONGO BACKUP:     chat = new Chat({
-        // MONGO BACKUP:         userId: order.userId,
-        // MONGO BACKUP:         messages: [message],
-        // MONGO BACKUP:         lastReadByUser: new Date(),
-        // MONGO BACKUP:         lastReadByAdmin: new Date(0),
-        // MONGO BACKUP:         unreadAdminCount: 0,
-        // MONGO BACKUP:     });
-        // MONGO BACKUP: } else {
-        // MONGO BACKUP:     chat.messages.push(message);
-        // MONGO BACKUP:     chat.messages.push(message2);
-        // MONGO BACKUP: }
-        // MONGO BACKUP: await chat.save();
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const clientSocketId = clients.get(order.userId);
-        // MONGO BACKUP: if (clientSocketId) {
-        // MONGO BACKUP:     io.to(clientSocketId).emit('new_message', { sender: -1, content: orderMsg });
-        // MONGO BACKUP:     if (order.status === 'completed') io.to(clientSocketId).emit('new_message', { sender: -1, content: "Please leave a review for order №" + order._id });
-        // MONGO BACKUP: }
-        // MONGO BACKUP: 
-        // MONGO BACKUP: if (order.status === 'completed') {
-        // MONGO BACKUP:     const userId = order.userId;
-        // MONGO BACKUP:     const referId = await Referral.findOne({ userId });
-        // MONGO BACKUP:     const refer = await User.findOne({ _id: referId });
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     if (referId && refer && payment) {
-        // MONGO BACKUP:         const amountForRefer = (payment.amountToPay / 100) * refer.referralPercent;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:         const botToken = process.env.BOT_TOKEN;
-        // MONGO BACKUP:         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:         await axios.post(url, {
-        // MONGO BACKUP:             chat_id: referId,
-        // MONGO BACKUP:             text: `Поздравляем! Вы заработали ${amountForRefer + " " + payment.currency} за заказ, оформленный вашим рефералом ${userId}.`,
-        // MONGO BACKUP:         });
-        // MONGO BACKUP:     }
-        // MONGO BACKUP: }
-        // MONGO BACKUP: 
-        // MONGO BACKUP: if (order.status === 'canceled') {
-        // MONGO BACKUP:     const userId = order.userId;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     const botToken = process.env.BOT_TOKEN;
-        // MONGO BACKUP:     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     await axios.post(url, {
-        // MONGO BACKUP:         chat_id: userId,
-        // MONGO BACKUP:         text: `Заказ №${order._id} отменён.`,
-        // MONGO BACKUP:     });
-        // MONGO BACKUP: }
-        // MONGO BACKUP: 
-        // MONGO BACKUP: if (order.status === 'invalid') {
-        // MONGO BACKUP:     const userId = order.userId;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     const botToken = process.env.BOT_TOKEN;
-        // MONGO BACKUP:     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-        // MONGO BACKUP: 
-        // MONGO BACKUP:     await axios.post(url, {
-        // MONGO BACKUP:         chat_id: userId,
-        // MONGO BACKUP:         text: `В заказе №${order._id} указаны неверные данные. Пожалуйста, перейдите в чат, чтобы обновить информацию.`,
-        // MONGO BACKUP:         reply_markup: {
-        // MONGO BACKUP:             inline_keyboard: [[
-        // MONGO BACKUP:                 {
-        // MONGO BACKUP:                     text: "💬 Чат",
-        // MONGO BACKUP:                     web_app: {
-        // MONGO BACKUP:                         url: process.env.CLIENT_URL + "/chat"
-        // MONGO BACKUP:                     }
-        // MONGO BACKUP:                 }
-        // MONGO BACKUP:             ]]
-        // MONGO BACKUP:         }
-        // MONGO BACKUP:     });
-        // MONGO BACKUP: }
-        // MONGO BACKUP: 
-        // MONGO BACKUP: const orders: IOrder[] = await Order.find();
-        // MONGO BACKUP: socket.emit('orders_history', orders);
-        // MONGO BACKUP: 
-        // MONGO BACKUP: logger.info('New order notification sent via WebSocket', { context: { orderId: order._id } });
-
         if (!data.orderId) return;
-        
+
         const id = Number(data.orderId);
         if (isNaN(id)) return;
-        
-        const order = await orderRepository.findById(id);
-        if (!order) return;
-        
-        const game = order.offer?.game;
-        const offer = order.offer;
-        const payment = order.payment;
-        
-        const orderMsg = `📦 *Order status changed*\n🆔 Order ID: ${order.id}\n🎮 Game: ${game?.title}\n🎮 Offer: ${offer?.title}\n💰 Amount: ${payment?.amountToPay} ${order.currency}\n📌 Status: ${order.status.toUpperCase()}\n🕒 Created: ${new Date(order.createdAt).toLocaleString()}\n🕒 Modified: ${new Date(order.updatedAt).toLocaleString()}\n`;
-        
-        const chat = await chatRepository.findOrCreate(order.userId);
-        
-        await chatRepository.addMessage(chat.id, {
-            sender: -1,
-            content: orderMsg,
-            timestamp: new Date(),
-            isSystemMessage: true,
-        });
-        
-        if (order.status === 'completed') {
+
+        try {
+            const order = await orderRepository.findById(id);
+            if (!order) return;
+
+            const offer = await offerRepository.findById(order.offerId);
+            const game = offer ? await gameRepository.findById(offer.gameId) : null;
+            
+            // Find payment by orderId
+            const payment = order.payment || await prisma.payment.findFirst({
+                where: { orderId: order.id },
+                include: {
+                    offer: {
+                        include: {
+                            game: true,
+                        },
+                    },
+                },
+            });
+
+            const orderMsg = `📦 *Order status changed*\n🆔 Order ID: ${order.id}\n🎮 Game: ${game?.title || 'Unknown'}\n🎮 Offer: ${offer?.title || 'Unknown'}\n💰 Amount: ${payment?.amountToPay || 0} ${order.currency}\n📌 Status: ${order.status.toUpperCase()}\n🕒 Created: ${new Date(order.createdAt).toLocaleString()}\n🕒 Modified: ${new Date(order.updatedAt).toLocaleString()}\n`;
+
+            const user = await userRepository.findById(order.userId);
+            if (!user) return;
+
+            let chat = await chatRepository.findByUserId(user.id);
+            
+            if (!chat) {
+                chat = await chatRepository.create({
+                    user: { connect: { id: user.id } },
+                    lastReadByUser: new Date(),
+                    lastReadByAdmin: new Date(0),
+                    unreadAdminCount: 0,
+                });
+            }
+
             await chatRepository.addMessage(chat.id, {
                 sender: -1,
-                content: "Please leave a review for order №" + order.id,
+                content: orderMsg,
                 timestamp: new Date(),
                 isSystemMessage: true,
             });
-        }
-        
-        const clientSocketId = clients.get(order.userId);
-        if (clientSocketId) {
-            io.to(clientSocketId).emit('new_message', { sender: -1, content: orderMsg });
+
             if (order.status === 'completed') {
-                io.to(clientSocketId).emit('new_message', { sender: -1, content: "Please leave a review for order №" + order.id });
-            }
-        }
-        
-        if (order.status === 'completed') {
-            const userId = order.userId;
-            const referral = await referralRepository.findByUserId(userId);
-            const refer = referral ? await userRepository.findById(referral.referId) : null;
-            
-            if (refer && payment) {
-                const amountForRefer = (payment.amountToPay / 100) * refer.referralPercent;
-                
-                const botToken = process.env.BOT_TOKEN;
-                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-                
-                await axios.post(url, {
-                    chat_id: refer.id,
-                    text: `Поздравляем! Вы заработали ${amountForRefer + " " + payment.currency} за заказ, оформленный вашим рефералом ${userId}.`,
+                await chatRepository.addMessage(chat.id, {
+                    sender: -1,
+                    content: "Please leave a review for order №" + order.id,
+                    timestamp: new Date(),
+                    isSystemMessage: true,
                 });
             }
-        }
-        
-        if (order.status === 'canceled') {
-            const userId = order.userId;
-            
-            const botToken = process.env.BOT_TOKEN;
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            
-            await axios.post(url, {
-                chat_id: userId,
-                text: `Заказ №${order.id} отменён.`,
-            });
-        }
-        
-        if (order.status === 'invalid') {
-            const userId = order.userId;
-            
-            const botToken = process.env.BOT_TOKEN;
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-            
-            await axios.post(url, {
-                chat_id: userId,
-                text: `В заказе №${order.id} указаны неверные данные. Пожалуйста, перейдите в чат, чтобы обновить информацию.`,
-                reply_markup: {
-                    inline_keyboard: [[
-                        {
-                            text: "💬 Чат",
-                            web_app: {
-                                url: process.env.CLIENT_URL + "/chat"
-                            }
-                        }
-                    ]]
+
+            const clientSocketId = clients.get(Number(user.telegramId));
+            if (clientSocketId) {
+                io.to(clientSocketId).emit('new_message', { sender: -1, content: orderMsg });
+                if (order.status === 'completed') {
+                    io.to(clientSocketId).emit('new_message', { 
+                        sender: -1, 
+                        content: "Please leave a review for order №" + order.id 
+                    });
                 }
-            });
+            }
+
+            if (order.status === 'completed' && payment) {
+                const referral = await referralRepository.findByUserId(order.userId);
+                
+                if (referral && payment) {
+                    const referrer = await userRepository.findById(referral.referId);
+                    
+                    if (referrer) {
+                        const amountForRefer = Number(payment.amountToPay) / 100 * Number(referrer.referralPercent);
+
+                        const botToken = process.env.BOT_TOKEN;
+                        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+                        await axios.post(url, {
+                            chat_id: Number(referrer.telegramId),
+                            text: `Поздравляем! Вы заработали ${amountForRefer} ${payment.currency} за заказ, оформленный вашим рефералом ${user.telegramId}.`,
+                        });
+                    }
+                }
+            }
+
+            if (order.status === 'canceled') {
+                const botToken = process.env.BOT_TOKEN;
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+                await axios.post(url, {
+                    chat_id: Number(user.telegramId),
+                    text: `Заказ №${order.id} отменён.`,
+                });
+            }
+
+            if (order.status === 'invalid') {
+                const botToken = process.env.BOT_TOKEN;
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+                await axios.post(url, {
+                    chat_id: Number(user.telegramId),
+                    text: `В заказе №${order.id} указаны неверные данные. Пожалуйста, перейдите в чат, чтобы обновить информацию.`,
+                    reply_markup: {
+                        inline_keyboard: [[
+                            {
+                                text: "💬 Чат",
+                                web_app: {
+                                    url: process.env.CLIENT_URL + "/chat"
+                                }
+                            }
+                        ]]
+                    }
+                });
+            }
+
+            const orders = await orderRepository.findAll();
+            socket.emit('orders_history', orders);
+
+            logger.info('New order notification sent via WebSocket', { context: { orderId: order.id } });
+        } catch (error) {
+            logger.error('Error in admin_order_status_changed', { error, orderId: id });
         }
-        
-        const orders = await orderRepository.findAll();
-        socket.emit('orders_history', orders);
-        
-        logger.info('New order notification sent via WebSocket', { context: { orderId: order.id } });
     });
 
     socket.on('disconnect', () => {
@@ -480,19 +412,6 @@ io.on('connection', socket => {
     });
 });
 
-// MONGO BACKUP: connectDB()
-// MONGO BACKUP:     .then(() => {
-// MONGO BACKUP:         // Listen on 0.0.0.0 to accept external traffic from Replit reverse proxy
-// MONGO BACKUP:         httpServer.listen(PORT as number, '0.0.0.0', () => {
-// MONGO BACKUP:             logger.info(`Server is running on port ${PORT} and accepting external connections`);
-// MONGO BACKUP:         });
-// MONGO BACKUP:     })
-// MONGO BACKUP:     .catch((error) => {
-// MONGO BACKUP:         logger.error('Failed to start server:', error);
-// MONGO BACKUP:         process.exit(1);
-// MONGO BACKUP:     });
-
-// Start server with Prisma connection
 connectDatabase()
     .then(() => {
         // Listen on 0.0.0.0 to accept external traffic from Replit reverse proxy

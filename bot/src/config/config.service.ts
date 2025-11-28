@@ -40,6 +40,12 @@ export class ConfigService {
       }
     }
 
+    // Дополнительные вычисляемые значения
+    const resolvedWebAppUrl = process.env.WEB_APP_URL
+      || process.env.CLIENT_URL
+      || process.env.VITE_API_URL
+      || 'https://mobile-games.online/';
+
     // Загружаем все настройки
     this.config = {
       // 🤖 Telegram Bot
@@ -62,7 +68,8 @@ export class ConfigService {
 
       // 🌐 Web приложение
       webApp: {
-        url: this.getEnvVar('WEB_APP_URL', 'https://mobile-games.online/'),
+        // WEB_APP_URL берём из окружения, а если отсутствует — пробуем CLIENT_URL или VITE_API_URL
+        url: resolvedWebAppUrl,
         googlePlayUrl: this.getEnvVar('DEFAULT_GOOGLE_PLAY_URL', 'https://play.google.com'),
         appStoreUrl: this.getEnvVar('DEFAULT_APP_STORE_URL', 'https://www.apple.com/app-store/'),
       },

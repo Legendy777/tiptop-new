@@ -1,22 +1,42 @@
 import { prisma } from '../client';
+import { Prisma } from '@prisma/client';
 import { DatabaseError, NotFoundError } from '../error';
-import { OrderStatus, Prisma } from '../../../generated/prisma';
+
+type OrderStatus = 'pending' | 'process' | 'completed' | 'canceled' | 'invalid';
+
+type OrderWithRelations = Prisma.OrderGetPayload<{
+  include: {
+    user: true;
+    offer: {
+      include: {
+        game: true;
+      };
+    };
+    payment: true;
+    orderDetails: true;
+    review: true;
+  };
+}>;
 
 export class OrderRepository {
-  async findById(id: number) {
+  async findById(id: number | string): Promise<OrderWithRelations> {
     try {
       const order = await prisma.order.findUnique({
-        where: { id },
+        where: { id: Number(id) },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
           review: true,
         },
       });
       if (!order) {
-        throw new NotFoundError('Order', id);
+        throw new NotFoundError('Order', String(id));
       }
       return order;
     } catch (error) {
@@ -25,17 +45,22 @@ export class OrderRepository {
     }
   }
 
-  async findAll(limit?: number, offset?: number) {
+  async findAll(limit?: number, offset?: number): Promise<OrderWithRelations[]> {
     try {
       return await prisma.order.findMany({
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
-        orderBy: { createdAt: 'desc' },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -43,14 +68,20 @@ export class OrderRepository {
     }
   }
 
-  async create(data: Prisma.OrderCreateInput) {
+  async create(data: Prisma.OrderCreateInput): Promise<OrderWithRelations> {
     try {
       return await prisma.order.create({
         data,
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
+          orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -58,16 +89,21 @@ export class OrderRepository {
     }
   }
 
-  async update(id: number, data: Prisma.OrderUpdateInput) {
+  async update(id: number | string, data: Prisma.OrderUpdateInput): Promise<OrderWithRelations> {
     try {
       return await prisma.order.update({
-        where: { id },
+        where: { id: Number(id) },
         data,
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -75,21 +111,26 @@ export class OrderRepository {
     }
   }
 
-  async delete(id: number) {
+  async delete(id: number | string) {
     try {
-      return await prisma.order.delete({ where: { id } });
+      return await prisma.order.delete({ where: { id: Number(id) } });
     } catch (error) {
       throw new DatabaseError('Failed to delete order', error);
     }
   }
 
-  async findByUserId(userId: number) {
+  async findByUserId(userId: number | string): Promise<OrderWithRelations[]> {
     try {
       return await prisma.order.findMany({
-        where: { userId },
+        where: { userId: Number(userId) },
         orderBy: { createdAt: 'desc' },
         include: {
-          offer: { include: { game: true } },
+          user: true,
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
           review: true,
@@ -100,16 +141,21 @@ export class OrderRepository {
     }
   }
 
-  async findByStatus(status: OrderStatus) {
+  async findByStatus(status: OrderStatus): Promise<OrderWithRelations[]> {
     try {
       return await prisma.order.findMany({
         where: { status },
         orderBy: { createdAt: 'desc' },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -117,16 +163,21 @@ export class OrderRepository {
     }
   }
 
-  async updateStatus(id: number, status: OrderStatus) {
+  async updateStatus(id: number | string, status: OrderStatus): Promise<OrderWithRelations> {
     try {
       return await prisma.order.update({
-        where: { id },
+        where: { id: Number(id) },
         data: { status },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -134,23 +185,25 @@ export class OrderRepository {
     }
   }
 
-  async createWithDetails(
-    orderData: Prisma.OrderCreateInput,
-    detailsData: Omit<Prisma.OrderDetailsCreateInput, 'order'>
-  ) {
+  async createWithDetails(orderData: Prisma.OrderCreateInput, detailsData: Prisma.OrderDetailsCreateInput): Promise<OrderWithRelations> {
     try {
       return await prisma.order.create({
         data: {
-          ...orderData,
+        ...orderData,
           orderDetails: {
             create: detailsData,
           },
         },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
           orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -158,10 +211,20 @@ export class OrderRepository {
     }
   }
 
-  async updateDetails(orderId: number, detailsData: Prisma.OrderDetailsUpdateInput) {
+  async updateDetails(orderId: number | string, detailsData: Prisma.OrderDetailsUpdateInput) {
     try {
+      const order = await this.findById(orderId);
+      if (!order.orderDetails) {
+        // Create if doesn't exist
+        return await prisma.orderDetails.create({
+          data: {
+            order: { connect: { id: order.id } },
+            ...detailsData as any,
+          },
+        });
+      }
       return await prisma.orderDetails.update({
-        where: { orderId },
+        where: { orderId: order.id },
         data: detailsData,
       });
     } catch (error) {
@@ -169,25 +232,35 @@ export class OrderRepository {
     }
   }
 
-  async getDetails(orderId: number) {
+  async getDetails(orderId: number | string) {
     try {
+      const order = await this.findById(orderId);
+      if (!order.orderDetails) {
+        throw new NotFoundError('OrderDetails', String(orderId));
+      }
       return await prisma.orderDetails.findUnique({
-        where: { orderId },
+        where: { orderId: order.id },
       });
     } catch (error) {
       throw new DatabaseError('Failed to get order details', error);
     }
   }
 
-  async findPendingOrders() {
+  async findPendingOrders(): Promise<OrderWithRelations[]> {
     try {
       return await prisma.order.findMany({
         where: { status: 'pending' },
         orderBy: { createdAt: 'asc' },
         include: {
           user: true,
-          offer: { include: { game: true } },
+          offer: {
+            include: {
+              game: true,
+            },
+          },
           payment: true,
+          orderDetails: true,
+          review: true,
         },
       });
     } catch (error) {
@@ -195,7 +268,7 @@ export class OrderRepository {
     }
   }
 
-  async countByStatus(status: OrderStatus) {
+  async countByStatus(status: OrderStatus): Promise<number> {
     try {
       return await prisma.order.count({
         where: { status },

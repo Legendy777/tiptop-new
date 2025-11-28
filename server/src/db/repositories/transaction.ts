@@ -1,6 +1,6 @@
 import { prisma } from '../client';
 import { DatabaseError, NotFoundError } from '../error';
-import { Currency, TransactionType, Prisma } from '../../../generated/prisma';
+import { Currency, TransactionType, Prisma } from '@prisma/client';
 
 export class TransactionRepository {
   async findById(id: number) {

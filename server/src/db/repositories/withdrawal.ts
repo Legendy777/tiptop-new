@@ -1,6 +1,6 @@
 import { prisma } from '../client';
 import { DatabaseError, NotFoundError } from '../error';
-import { WithdrawalStatus, Currency, Prisma } from '../../../generated/prisma';
+import { WithdrawalStatus, Currency, Prisma } from '@prisma/client';
 
 export class WithdrawalRepository {
   async findById(id: number) {

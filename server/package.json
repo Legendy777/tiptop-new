@@ -7,6 +7,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only index.ts",
     "build": "tsc",
+    "start:prod": "node dist/index.js",
     "test": "jest",
     "lint": "eslint . --ext .ts,.js",
     "lint:fix": "eslint . --ext .ts,.js --fix"
@@ -17,6 +18,8 @@
   "dependencies": {
     "@foile/crypto-pay-api": "^1.0.0",
     "@telegram-apps/init-data-node": "^2.0.10",
+    "@prisma/client": "^5.19.0",
+    "prisma": "^5.19.0",
     "axios": "^1.6.7",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",

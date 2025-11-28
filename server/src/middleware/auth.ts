@@ -3,13 +3,14 @@ import { logger } from '../config/logger';
 import dotenv from 'dotenv';
 import console from "node:console";
 import * as process from "node:process";
+import * as path from "node:path";
 import { isValid } from '@telegram-apps/init-data-node';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN || '';
 if (!TELEGRAM_BOT_TOKEN) {
   logger.error('BOT_TOKEN is not defined in the environment variables');
-  throw new Error('BOT_TOKEN is not defined in the environment variables');
+  // Do not crash the server; authentication middleware below will handle validation based on NODE_ENV
 }
 
 interface TelegramUser {

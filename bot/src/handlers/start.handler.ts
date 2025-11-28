@@ -41,6 +41,9 @@ export async function handleStart(ctx: Context, notificationService?: Notificati
     const firstName = ctx.from.first_name;
     const languageCode = ctx.from.language_code;
 
+    // Следуем оригинальной логике без дополнительных сообщений,
+    // чтобы не ломать текущее поведение бота.
+
     errorHandler.logInfo(`🚀 Пользователь ${userId} (${username || firstName || 'Unknown'}) запустил бота`);
     await loggerMiddleware.logUserAction(userId, 'bot_start', { username, firstName, languageCode });
 
@@ -127,7 +130,7 @@ export async function handleLanguageChange(ctx: Context, language: string) {
         await userService.updateSubscription(userId, { isSubscribed: true });
 
       // Устанавливаем главную кнопку меню
-      const webAppUrl = configService.getString('WEB_APP_URL', WEB_APP_URL);
+      const webAppUrl = configService.get<string>('webApp.url');
       await ctx.setChatMenuButton({
         type: 'web_app',
         text: l.buttons.store,
@@ -336,7 +339,7 @@ export async function showMainMenu(ctx: Context, editMessage = true, messageIdTo
       errorHandler.logError('No valid games in database');
       // Фоллбэк игра
       const fallbackGame = {
-        _id: 0,
+        id: 0,
         title: l.system.defaultGame,
         imageUrl: PLACEHOLDER_IMAGE_URL,
         gifUrl: DEFAULT_GIF_URL,
@@ -391,7 +394,7 @@ export async function showMainMenu(ctx: Context, editMessage = true, messageIdTo
       const menuText = `${currentGame.title}`;
       errorHandler.logInfo(`Showing main menu for user ${userId}. Language: ${language}.`);
       errorHandler.logInfo(`Current banner text: "${menuText}", animation URL: "${currentGame.gifUrl}"`);
-      await loggerMiddleware.logUserAction(userId, 'main_menu_shown', { gameId: currentGame._id, gameTitle: currentGame.title });
+      await loggerMiddleware.logUserAction(userId, 'main_menu_shown', { gameId: currentGame.id, gameTitle: currentGame.title });
 
       const keyboard = messageService.createMainMenuKeyboard(language, userId, currentGame, isPlaying[userIdStr]);
       errorHandler.logInfo(`Building keyboard for language: ${language}`);
@@ -435,21 +438,59 @@ async function showLanguageSelection(ctx: Context) {
   if (!ctx.from) return;
   const userId = ctx.from.id;
 
-  // Проверяем, есть ли уже пользователь с языком и подпиской
+  // Загружаем пользователя и определяем язык интерфейса
   const user = await userService.getUserById(userId);
-  if (user && user.language && user.isSubscribed) {
-    // Пользователь уже настроен, устанавливаем постоянную клавиатуру и показываем главное меню
-    const l = localization(user.language);
-    const persistentKeyboard = messageService.createPersistentKeyboard(user.language);
-    
-    await ctx.reply(l.messages.welcome, {
-      reply_markup: persistentKeyboard,
+  const currentLanguage = user?.language || 'ru';
+  const l = localization(currentLanguage);
+
+  // 1) Всегда проверяем подписку на канал при /start
+  let isSubscribed = false;
+  try {
+    isSubscribed = await checkUserSubscription(ctx, userId.toString());
+    await loggerMiddleware.logUserAction(userId, 'subscription_check_on_start', { isSubscribed });
+    // Сохраняем актуальный статус подписки (best-effort)
+    await userService.updateSubscription(userId, { isSubscribed });
+  } catch (subErr) {
+    errorHandler.logWarning('Subscription check failed on /start:', subErr);
+  }
+
+  // Если НЕ подписан — показываем запрос подписки и выходим
+  if (!isSubscribed) {
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: l.buttons.subscribeToChannel, url: getChannelUrl() }],
+        [{ text: l.buttons.checkSubscription, callback_data: 'check_subscription' }],
+      ],
+    };
+
+    // Удаляем предыдущее сообщение если есть
+    const previousMessageId = messageService.getMessageIdToEdit(userId);
+    if (previousMessageId && ctx.chat?.id) {
+      try {
+        await ctx.deleteMessage(previousMessageId);
+        errorHandler.logInfo(`Deleted previous message ${previousMessageId} for user ${userId} before showing subscription request.`);
+      } catch (error) {
+        errorHandler.logWarning(`Could not delete message ${previousMessageId} for user ${userId}:`, error);
+      }
+    }
+
+    const subscribeMessage = await ctx.replyWithAnimation(SUBSCRIBE_REQUEST_GIF, {
+      caption: l.subscription.request,
+      parse_mode: 'HTML',
+      reply_markup: keyboard,
     });
-    
-    await showMainMenu(ctx, false);
+
+    if ('message_id' in subscribeMessage) {
+      messageService.storeMessageId(userId, subscribeMessage.message_id);
+    }
     return;
   }
 
+  // 2) Если подписан — проверяем, выбран ли язык
+  // Требование: показывать выбор языка КАЖДЫЙ раз после /start
+  // Даже если язык уже был выбран ранее — предлагаем выбрать заново
+
+  // Язык ещё не выбран — показываем выбор языка
   const keyboard = messageService.createLanguageKeyboard();
   const langSelectionGif = WELCOME_GIFS?.ru || DEFAULT_GIF_URL;
 
@@ -464,9 +505,8 @@ async function showLanguageSelection(ctx: Context) {
     }
   }
 
-  const l = localization('ru'); // Используем русский для выбора языка
   const message = await ctx.replyWithAnimation(langSelectionGif, {
-    caption: l.system.languageSelection,
+    caption: localization('ru').system.languageSelection, // предлагаем выбор на русском/английском
     parse_mode: 'HTML',
     reply_markup: keyboard,
   });
