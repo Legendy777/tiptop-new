@@ -1,23 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
 echo "📦 Сборка всех компонентов для production..."
 echo ""
 
+# Переходим в корень репозитория (папка, где лежит этот скрипт)
+cd "$(dirname "$0")"
+
 # Собираем сервер
 echo "🔧 Сборка сервера..."
-cd /home/runner/workspace/server && npm run build
+cd server
+npm install --omit=dev
+npm run build
+cd ..
 
 # Собираем бота
 echo "🔧 Сборка бота..."
-cd /home/runner/workspace/bot && npm run build
-
-# Собираем клиент
-echo "🔧 Сборка клиента..."
-cd /home/runner/workspace/client && npm run build
-
-# Собираем админку
-echo "🔧 Сборка админки..."
-cd /home/runner/workspace/admin && npm run build
+cd bot
+npm install --omit=dev
+npm run build
+cd ..
 
 echo ""
 echo "✅ Все компоненты собраны успешно!"
