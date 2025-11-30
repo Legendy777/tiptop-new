@@ -98,8 +98,8 @@ function startProcess(name, cwd, command, args = []) {
 const serverCwd = path.join(__dirname, 'server');
 const botCwd = path.join(__dirname, 'bot');
 
-startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'dev']);
-startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'dev']);
+startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'start']);
+startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'start']);
 
 console.log('');
 console.log('✅ Платформа Tip-Top запущена!');
