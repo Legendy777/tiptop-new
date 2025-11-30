@@ -6,7 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node index.js",
     "start": "node index.js",
-    "build": "bash build-all.sh",
+    "build": "cd server && npm run build && cd ../bot && npm run build",
     "start-temp": "node scripts/auto-tunnel.js"
   },
   "keywords": [],
