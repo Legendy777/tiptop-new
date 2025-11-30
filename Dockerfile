@@ -2,16 +2,28 @@ FROM node:22
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY server ./server
-COPY bot ./bot
+# Корневой package.json и lock
+COPY package.json package-lock.json ./
 
+# server и bot манифесты
+COPY server/package.json server/package-lock.json ./server/
+COPY bot/package.json bot/package-lock.json ./bot/
+
+# deps в корне
 RUN npm ci
 
-# Сборка server и bot
-RUN cd server && npm ci && npm run build
-RUN cd bot && npm ci && npm run build
+# Сборка сервера
+WORKDIR /app/server
+RUN npm ci && npm run build
 
+# Сборка бота
+WORKDIR /app/bot
+RUN npm ci && npm run build
+
+# Возвращаемся в корень и докидываем всё остальное
+WORKDIR /app
 COPY . .
+
+EXPOSE 8080
 
 CMD ["node", "index.js"]
