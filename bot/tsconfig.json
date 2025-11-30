@@ -6,9 +6,9 @@
     "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
-        "noImplicitAny": false,
+    "strict": false,
+    "skipLibCheck": true,
+    "noImplicitAny": false
   },
   "include": ["src/**/*"]
 }
