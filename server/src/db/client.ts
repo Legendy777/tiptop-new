@@ -5,7 +5,9 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 // Формируем URL из переменных Railway если DATABASE_URL не установлен
 const getDatabaseUrl = (): string => {
-  if (process.env.DATABASE_URL) {
+console.log('DATABASE_URL:', process.env.DATABASE_URL);
+  console.log('DATABASE_HOST:', process.env.DATABASE_HOST);
+    if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL;
   }
 
