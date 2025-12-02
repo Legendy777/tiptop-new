@@ -6,8 +6,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node index.js",
     "start": "node index.js",
-    "build": "bash build-all.sh",
-    "start-temp": "node scripts/auto-tunnel.js"
+    "build": "npm ci --include=dev && npm run build:server && npm run build:bot",
+    "build:server": "cd server && npm ci --include=dev && npm run build",
+    "build:bot": "cd bot && npm ci --include=dev && npm run build",
+    "start-temp": "node scripts/auto-tunnel.js",
+    "prestart": "npm run build"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
