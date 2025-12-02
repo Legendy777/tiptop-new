@@ -1,5 +1,5 @@
 import { prisma } from '../client';
-import { Prisma, Chat as PrismaChat, ChatMessage } from '../../../generated/prisma';
+import { Prisma, Chat as PrismaChat, ChatMessage } from '@prisma/client';
 import { DatabaseError, NotFoundError } from '../error';
 
 type ChatWithRelations = Prisma.ChatGetPayload<{
@@ -192,4 +192,5 @@ export class ChatRepository {
 }
 
 export const chatRepository = new ChatRepository();
+
 
