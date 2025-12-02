@@ -3,15 +3,21 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020"],
+    "declaration": true,
     "outDir": "./dist",
-    "rootDir": ".."
-    "strict": false,
+    "rootDir": ".",
+    "strict": true,
     "esModuleInterop": true,
-        "noImplicitAny": false,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
     "moduleResolution": "node",
-    "resolveJsonModule": true
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/*": ["./node_modules/@prisma/client/*"]
+    }
   },
-  "include": ["src/**/*.ts"], "index.ts"]
+  "include": ["src/**/*.ts", "index.ts"],
   "exclude": ["node_modules", "dist"]
 }
