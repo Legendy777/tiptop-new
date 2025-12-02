@@ -412,17 +412,22 @@ io.on('connection', socket => {
     });
 });
 
+// Start server without blocking on database connection
+// Database connection will be retried in the background
 connectDatabase()
-    .then(() => {
-        // Listen on 0.0.0.0 to accept external traffic from Replit reverse proxy
-        httpServer.listen(PORT as number, '0.0.0.0', () => {
-            logger.info(`Server is running on port ${PORT} and accepting external connections`);
-        });
-    })
-    .catch((error) => {
-        logger.error('Failed to start server:', error);
-        process.exit(1);
+  .then(() => {
+    logger.info('✅ Database connection successful');
+  })
+  .catch((error) => {
+    logger.warn('⚠️ Failed to connect to database on startup:', error.message);
+    logger.warn('Server will continue running - database retries will be attempted');
+  })
+  .finally(() => {
+    // Start server regardless of database connection status
+    httpServer.listen(PORT as number, '0.0.0.0', () => {
+      logger.info(`Server is running on port ${PORT} and accepting external connections`);
     });
+  })    });
 
 app.use('/api/games', gameRoutes);
 app.use('/api/offers', offerRoutes);
