@@ -427,7 +427,7 @@ connectDatabase()
     httpServer.listen(PORT as number, '0.0.0.0', () => {
       logger.info(`Server is running on port ${PORT} and accepting external connections`);
     });
-  })    });
+  })  
 
 app.use('/api/games', gameRoutes);
 app.use('/api/offers', offerRoutes);
