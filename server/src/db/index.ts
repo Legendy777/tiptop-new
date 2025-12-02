@@ -22,6 +22,16 @@ export { withdrawalRepository, WithdrawalRepository } from './repositories/withd
 
 export * from '@prisma/client';
 
+// Construct DATABASE_URL from environment variables if not provided
+if (!process.env.DATABASE_URL && process.env.DATABASE_HOST) {
+  const host = process.env.DATABASE_HOST || 'localhost';
+  const port = process.env.DATABASE_PORT || '5432';
+  const user = process.env.DATABASE_USER || 'postgres';
+  const password = process.env.DATABASE_PASSWORD || '';
+  const database = process.env.DATABASE_NAME || 'railway';
+  process.env.DATABASE_URL = `postgresql://${user}:${password}@${host}:${port}/${database}?sslmode=require`;
+}
+
 // Connection helper - PostgreSQL only
 export async function connectDatabase() {
   try {
