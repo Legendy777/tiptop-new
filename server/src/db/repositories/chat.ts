@@ -96,7 +96,7 @@ export class ChatRepository {
     }
   }
 
-  async addMessage(chatId: number, messageData: Omit<Prisma.ChatMessageCreateInput, 'chat'>) {
+  async addMessage(chatId: number, messageData: any) {
     try {
       const chat = await prisma.chat.findUnique({ where: { id: Number(chatId) } });
       if (!chat) throw new NotFoundError('Chat', String(chatId));
@@ -192,4 +192,4 @@ export class ChatRepository {
 }
 
 export const chatRepository = new ChatRepository();
-
+
