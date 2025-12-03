@@ -13,6 +13,18 @@ export class MessageService {
   private userMessageIds: Map<number, number> = new Map();
 
   /**
+   * Безопасно очищает URL от лишних символов и пробелов
+   */
+  private sanitizeUrl(url?: string): string {
+    if (!url) return '';
+    const cleaned = String(url).replace(/[`'"\s]+/g, '').trim();
+    if (!/^https?:\/\//i.test(cleaned)) {
+      return `https://${cleaned.replace(/^\/+/, '')}`;
+    }
+    return cleaned;
+  }
+
+  /**
    * Нормализует базовый URL веб‑приложения.
    * Источник берётся из конфигурации, либо из переданного параметра.
    * Гарантирует корректный формат и отсутствие лишних слэшей.
@@ -22,7 +34,7 @@ export class MessageService {
     // Если значение отсутствует — возвращаем безопасный дефолт
     if (!raw) return 'https://mobile-games.online/';
     // Удаляем пробелы и приводим к строке
-    const url = String(raw).trim();
+    const url = this.sanitizeUrl(String(raw));
     // Если нет схемы, добавляем https
     if (!/^https?:\/\//i.test(url)) {
       return `https://${url.replace(/^\/+/, '')}`;
@@ -95,8 +107,8 @@ export class MessageService {
     const loc = this.getLocalization(language);
     
     // Определяем URL для магазинов
-    const googlePlayUrl = game?.googlePlayUrl || 'https://play.google.com';
-    const appStoreUrl = game?.appStoreUrl || 'https://apps.apple.com';
+    const googlePlayUrl = this.sanitizeUrl(game?.googlePlayUrl || 'https://play.google.com');
+    const appStoreUrl = this.sanitizeUrl(game?.appleStoreUrl || 'https://apps.apple.com');
     const webAppUrl = this.getWebAppBaseUrl();
 
     // Динамическая кнопка Play/Stop
@@ -219,8 +231,8 @@ export class MessageService {
 
     const messageIdToEdit = this.getMessageIdToEdit(userId);
     // Автоматически выбираем GIF если есть, иначе обычную картинку
-    const hasGif = game.gifUrl && game.gifUrl.trim() !== '';
-    const mediaUrl = hasGif ? game.gifUrl : game.imageUrl;
+    const hasGif = !!(game.gifUrl && game.gifUrl.trim() !== '');
+    const mediaUrl = this.sanitizeUrl(hasGif ? game.gifUrl : game.imageUrl);
     const isGif = hasGif;
 
     try {
@@ -246,19 +258,34 @@ export class MessageService {
     } catch (error) {
       // Если редактирование не удалось, отправляем новое сообщение
       try {
-        const sentMessage = isGif 
-          ? await ctx.replyWithAnimation(mediaUrl, {
-              caption: caption,
+        if (isGif) {
+          // Сначала пробуем GIF, если упадёт — fallback на фото
+          try {
+            const sent = await ctx.replyWithAnimation(mediaUrl, {
+              caption,
               parse_mode: 'HTML',
-              reply_markup: keyboard
-            })
-          : await ctx.replyWithPhoto(mediaUrl, {
-              caption: caption,
-              parse_mode: 'HTML',
-              reply_markup: keyboard
+              reply_markup: keyboard,
             });
-        
-        this.storeMessageId(userId, sentMessage.message_id);
+            this.storeMessageId(userId, sent.message_id);
+            return;
+          } catch (gifErr) {
+            const photoUrl = this.sanitizeUrl(game.imageUrl || mediaUrl);
+            const sentPhoto = await ctx.replyWithPhoto(photoUrl, {
+              caption,
+              parse_mode: 'HTML',
+              reply_markup: keyboard,
+            });
+            this.storeMessageId(userId, sentPhoto.message_id);
+            return;
+          }
+        } else {
+          const sentMessage = await ctx.replyWithPhoto(mediaUrl, {
+            caption,
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+          });
+          this.storeMessageId(userId, sentMessage.message_id);
+        }
       } catch (sendError) {
         console.error('❌ Ошибка отправки сообщения:', sendError);
       }

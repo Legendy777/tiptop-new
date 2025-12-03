@@ -141,7 +141,7 @@ bot.on('inline_query', async (ctx) => {
             },
             {
               text: l.inline.appStore,
-              url: game.appStoreUrl || DEFAULT_APP_STORE_URL,
+              url: game.appleStoreUrl || DEFAULT_APP_STORE_URL,
             },
           ],
           [

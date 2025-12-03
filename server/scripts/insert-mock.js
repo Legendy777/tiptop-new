@@ -1,7 +1,7 @@
 // Inserts provided Mongo mock data into PostgreSQL via Prisma (generated JS client)
 // Run: node server/scripts/insert-mock.js
 
-const { PrismaClient } = require('../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 function cleanUrl(url) {
