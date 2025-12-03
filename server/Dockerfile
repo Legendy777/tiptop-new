@@ -18,6 +18,7 @@ RUN apk add --no-cache openssl
 # Generate Prisma client and build TypeScript
 RUN npx prisma generate
 RUN npm run build
+RUN npx prisma migrate deploy
 
 EXPOSE 3001
 CMD ["npm", "run", "start:prod"]
