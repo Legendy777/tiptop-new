@@ -119,7 +119,8 @@ export async function handleLanguageChange(ctx: Context, language: string) {
 
 
   try {
-    await userService.updateLanguage(userId, { language });
+//     await userService.125
+    (userId, { language });
     errorHandler.logInfo(`Language updated to ${language} for user ${userId}`);
     await loggerMiddleware.logUserAction(ctx, 'language_changed', { language });
 
@@ -127,7 +128,7 @@ export async function handleLanguageChange(ctx: Context, language: string) {
     const isSubscribed = await checkUserSubscription(ctx, userId.toString());
 
     if (isSubscribed) {
-        await userService.updateSubscription(userId, { isSubscribed: true });
+//         await userService.updateSubscription(userId, { isSubscribed: true });
 
       // Устанавливаем главную кнопку меню
       const webAppUrl = configService.get<string>('webApp.url');
