@@ -56,8 +56,11 @@ if (!process.env.CLIENT_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
   console.log(`ℹ️  CLIENT_URL (Railway) установлен: ${process.env.CLIENT_URL}`);
 }
 
-// Устанавливаем WEB_APP_URL для Telegram бота
-if (!process.env.WEB_APP_URL) {
+// Устанавливаем WEB_APP_URL для Telegram бота: предпочитаем публичный домен Railway
+if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+  process.env.WEB_APP_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  console.log(`ℹ️  WEB_APP_URL (Railway) установлен: ${process.env.WEB_APP_URL}`);
+} else if (!process.env.WEB_APP_URL) {
   if (process.env.CLIENT_URL) {
     process.env.WEB_APP_URL = process.env.CLIENT_URL;
   }
