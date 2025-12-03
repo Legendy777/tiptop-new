@@ -1,5 +1,3 @@
-import { PrismaClient } from '@prisma/client';
-
 export interface Game {
   id: number;
   title: string;
@@ -15,7 +13,19 @@ export interface Game {
   updatedAt: Date;
 }
 
-const prisma = new PrismaClient();
+let prisma: any;
+async function getPrismaClient() {
+  try {
+    if (!prisma) {
+      const mod = await import('@prisma/client');
+      const { PrismaClient } = mod as any;
+      prisma = new PrismaClient();
+    }
+    return prisma;
+  } catch {
+    return null;
+  }
+}
 
 export class GameService {
   /**
@@ -23,19 +33,20 @@ export class GameService {
    */
   async getEnabledGames(): Promise<Game[]> {
     try {
-      const games = await prisma.game.findMany({
-        where: {
-          isEnabled: true,
-          isActual: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
+      if (!process.env.DATABASE_URL) {
+        return this.getDefaultGames();
+      }
+      const client = await getPrismaClient();
+      if (!client) {
+        return this.getDefaultGames();
+      }
+      const games = await client.game.findMany({
+        where: { isEnabled: true, isActual: true },
+        orderBy: { createdAt: 'desc' },
       });
-      return games;
+      return games && games.length ? games : this.getDefaultGames();
     } catch (error) {
       console.error('Error fetching games from database:', error);
-      // Fallback to default games if database fails
       return this.getDefaultGames();
     }
   }

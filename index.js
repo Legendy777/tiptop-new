@@ -127,8 +127,6 @@ const botCwd = path.join(__dirname, 'bot');
 (async () => {
   if (process.env.DATABASE_URL) {
     console.log('🗄️ Инициализация базы данных...');
-    // Генерация Prisma Client в корне, используя схему сервера — чтобы бот мог импортировать @prisma/client
-    await runTask('Prisma generate', __dirname, 'npx', ['prisma', 'generate', '--schema', 'server/prisma/schema.prisma']);
     await runTask('Prisma migrate deploy', serverCwd, 'npx', ['prisma', 'migrate', 'deploy']);
     await runTask('Insert mock data', serverCwd, 'node', ['scripts/insert-mock.js']);
   } else {
