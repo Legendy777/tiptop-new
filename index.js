@@ -123,15 +123,30 @@ function runTask(name, cwd, command, args = []) {
 // Запускаем все компоненты
 const serverCwd = path.join(__dirname, 'server');
 const botCwd = path.join(__dirname, 'bot');
+const clientCwd = path.join(__dirname, 'client');
+const adminCwd = path.join(__dirname, 'admin');
+
+async function ensureBuilt(name, indexPath, cwd) {
+  const exists = fs.existsSync(indexPath);
+  if (exists) return;
+  console.log(`ℹ️ ${name} dist не найден, выполняю сборку...`);
+  await runTask(`${name}: npm ci`, cwd, 'npm', ['ci', '--include=dev']);
+  await runTask(`${name}: build`, cwd, 'npm', ['run', 'build']);
+}
 
 // Перед запуском сервисов — попробуем выполнить миграции и сид
 (async () => {
-  if (process.env.DATABASE_URL) {
+  // Собираем SPA если нужно
+  await ensureBuilt('Client', path.join(__dirname, 'client', 'dist', 'index.html'), clientCwd);
+  await ensureBuilt('Admin', path.join(__dirname, 'admin', 'dist', 'index.html'), adminCwd);
+
+  // Миграции БД только если не localhost
+  if (process.env.DATABASE_URL && !/localhost|127\.0\.0\.1/i.test(process.env.DATABASE_URL)) {
     console.log('🗄️ Инициализация базы данных...');
     await runTask('Prisma migrate deploy', serverCwd, 'npx', ['prisma', 'migrate', 'deploy']);
     await runTask('Insert mock data', serverCwd, 'node', ['scripts/insert-mock.js']);
   } else {
-    console.log('ℹ️ DATABASE_URL не задан — пропускаю миграции и сид');
+    console.log('ℹ️ DATABASE_URL отсутствует или localhost — пропускаю миграции и сид');
   }
   startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'start']);
   startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'start']);
