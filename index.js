@@ -49,18 +49,18 @@ if (!process.env.API_URL) {
   console.log(`ℹ️  API_URL установлен автоматически: ${process.env.API_URL}`);
 }
 
-// Автоматически устанавливаем CLIENT_URL если не задан
-if (!process.env.CLIENT_URL) {
-  const replSlug = process.env.REPL_SLUG || 'tip-top';
-  const replOwner = process.env.REPL_OWNER || 'user';
-  process.env.CLIENT_URL = `https://${replSlug}.${replOwner}.repl.co`;
-  console.log(`ℹ️  CLIENT_URL установлен автоматически: ${process.env.CLIENT_URL}`);
+// Автоматически устанавливаем CLIENT_URL (Railway) если доступен публичный домен
+if (!process.env.CLIENT_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
+  process.env.CLIENT_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  console.log(`ℹ️  CLIENT_URL (Railway) установлен: ${process.env.CLIENT_URL}`);
 }
 
-// Устанавливаем WEB_APP_URL для Telegram бота (тот же URL что и CLIENT_URL)
+// Устанавливаем WEB_APP_URL для Telegram бота
 if (!process.env.WEB_APP_URL) {
-  process.env.WEB_APP_URL = process.env.CLIENT_URL;
-  console.log(`ℹ️  WEB_APP_URL установлен автоматически: ${process.env.WEB_APP_URL}`);
+  if (process.env.CLIENT_URL) {
+    process.env.WEB_APP_URL = process.env.CLIENT_URL;
+  }
+  console.log(`ℹ️  WEB_APP_URL: ${process.env.WEB_APP_URL || 'не задан'}`);
 }
 console.log('');
 
