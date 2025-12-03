@@ -94,12 +94,47 @@ function startProcess(name, cwd, command, args = []) {
   return proc;
 }
 
+// Выполнить команду и дождаться завершения
+function runTask(name, cwd, command, args = []) {
+  return new Promise((resolve) => {
+    console.log(`🔧 ${name}...`);
+    const proc = spawn(command, args, {
+      cwd,
+      stdio: 'inherit',
+      shell: true,
+      env: { ...process.env },
+    });
+    proc.on('exit', (code) => {
+      if (code === 0) {
+        console.log(`✅ ${name} завершено`);
+      } else {
+        console.log(`⚠️ ${name} завершено с кодом ${code}`);
+      }
+      resolve(code);
+    });
+    proc.on('error', (err) => {
+      console.error(`❌ Ошибка в ${name}:`, err);
+      resolve(1);
+    });
+  });
+}
+
 // Запускаем все компоненты
 const serverCwd = path.join(__dirname, 'server');
 const botCwd = path.join(__dirname, 'bot');
 
-startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'start']);
-startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'start']);
+// Перед запуском сервисов — попробуем выполнить миграции и сид
+(async () => {
+  if (process.env.DATABASE_URL) {
+    console.log('🗄️ Инициализация базы данных...');
+    await runTask('Prisma migrate deploy', serverCwd, 'npx', ['prisma', 'migrate', 'deploy']);
+    await runTask('Insert mock data', serverCwd, 'node', ['scripts/insert-mock.js']);
+  } else {
+    console.log('ℹ️ DATABASE_URL не задан — пропускаю миграции и сид');
+  }
+  startProcess('Server (API + Socket.IO)', serverCwd, 'npm', ['run', 'start']);
+  startProcess('Bot (Telegram)', botCwd, 'npm', ['run', 'start']);
+})();
 
 console.log('');
 console.log('✅ Платформа Tip-Top запущена!');
