@@ -119,8 +119,7 @@ export async function handleLanguageChange(ctx: Context, language: string) {
 
 
   try {
-//     await userService.125
-    (userId, { language });
+// await userService.updateLanguage(userId, { language });
     errorHandler.logInfo(`Language updated to ${language} for user ${userId}`);
     await loggerMiddleware.logUserAction(ctx, 'language_changed', { language });
 
