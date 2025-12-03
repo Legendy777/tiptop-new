@@ -455,6 +455,10 @@ if (process.env.NODE_ENV === 'production') {
     app.get('/admin/*', (req: Request, res: Response) => {
         res.sendFile(path.join(__dirname, '../../admin/dist/index.html'));
     });
+    app.get('*', (req: Request, res: Response, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/admin') || req.path.startsWith('/socket.io')) return next();
+        res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+    });
 }
 
 app.use((req: Request, res: Response) => {

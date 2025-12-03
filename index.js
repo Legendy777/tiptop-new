@@ -41,6 +41,7 @@ if (missingVars.length > 0) {
 // Не перезаписываем PORT - используем значение из .replit environment
 // По умолчанию Replit устанавливает PORT=5000
 const PORT = process.env.PORT || '3000';
+if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production';
 console.log(`ℹ️  Сервер будет запущен на порту: ${PORT}`);
 
 // Автоматически устанавливаем API_URL если не задан
