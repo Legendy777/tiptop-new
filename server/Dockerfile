@@ -18,7 +18,8 @@ RUN apk add --no-cache openssl
 # Generate Prisma client and build TypeScript
 RUN npx prisma generate
 RUN npm run build
-RUN npx prisma migrate deploy
 
 EXPOSE 3001
-CMD ["npm", "run", "start:prod"]
+
+# Запускаем миграции и исправление БД при старте, затем сервер
+CMD npx prisma migrate deploy && node scripts/fix-database.js && npm run start:prod
