@@ -27,6 +27,7 @@ const App = () => {
 
   const isAuth = useSelector((state: RootState) => state.user.isAuth)
   const user = useSelector((state: RootState) => state.user.user)
+  const loading = useSelector((state: RootState) => state.user.loading)
 
   const [isTelegram, setIsTelegram] = useState(false)
   const [userCreated, setUserCreated] = useState(false)
@@ -58,6 +59,10 @@ const App = () => {
     return <div className="text-white">Please open this app via Telegram</div>
   }
 
+  if (loading && import.meta.env.VITE_NODE_ENV === 'production') {
+    return <div className="text-white">Загрузка...</div>
+  }
+
   if (!isAuth && import.meta.env.VITE_NODE_ENV === 'production') {
     return <div className="text-white">Unauthorized</div>
   }
@@ -68,7 +73,7 @@ const App = () => {
 
   return (
     <>
-      <OrientationWarning />
+      {import.meta.env.VITE_NODE_ENV !== 'production' && <OrientationWarning />}
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MainLayout />}>

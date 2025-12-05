@@ -18,8 +18,8 @@ const Home = () => {
     dispatch(fetchGames());
   }, [dispatch]);
 
-  if (loading) return <p>{t('home.loading')}</p>;
-  if (error) return <p>{t('home.error', { error: error })}</p>;
+  if (loading) return <p className='text-white pt-1'>{t('home.loading')}</p>;
+  if (error) return <p className='text-white pt-1'>{t('home.error', { error: error })}</p>;
   if (!games || games.length === 0) return <p className='text-white pt-1'>{t('home.noProducts')}</p>;
 
   const gap: number = 8; // Gap between cards
@@ -30,7 +30,7 @@ const Home = () => {
       {games.length === 0 && <p>No products available</p>}
       {games.map((game, index) => (
         <div
-          onClick={() => navigate(`/offers/${game._id}`)}
+          onClick={() => navigate(`/offers/${game.id}`)}
           key={index}
           className="flex flex-col content-stretch justify-stretch h-fit rounded-[10px] cursor-pointer border-2  border-[#27282C]"
           style={{ width: cardWidth }}

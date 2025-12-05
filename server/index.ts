@@ -24,6 +24,7 @@ import chatRoutes from './src/routes/chatRoutes';
 import referralRoutes from './src/routes/referralRoutes';
 import transactionRoutes from './src/routes/transactionRoutes';
 import adminRoutes from './src/routes/adminRoutes';
+import kiroRoutes from './src/routes/kiroRoutes';
 
 import axios from "axios";
 
@@ -31,6 +32,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001; // Use 3001 by default to match Docker compose
+const ADMIN_SECRET = process.env.ADMIN_SECRET || '';
 
 // --- ENTIRE BLOCK WITH SSL CERTIFICATES REMOVED ---
 
@@ -414,9 +416,34 @@ io.on('connection', socket => {
 
 // Start server without blocking on database connection
 // Database connection will be retried in the background
+async function ensureMinimalOffers() {
+  try {
+    const games = await prisma.game.findMany();
+    for (const game of games) {
+      const count = await prisma.offer.count({ where: { gameId: game.id } });
+      if (count === 0) {
+        await prisma.offer.create({
+          data: {
+            title: 'Starter Pack',
+            imageUrl: game.imageUrl,
+            priceRUB: 199,
+            priceUSDT: 2,
+            isEnabled: true,
+            game: { connect: { id: game.id } },
+          },
+        });
+        logger.info('Seeded starter offer for game', { context: { gameId: game.id } });
+      }
+    }
+  } catch (error: any) {
+    logger.warn('Auto-seed offers failed', { error: error?.message || String(error) });
+  }
+}
+
 connectDatabase()
-  .then(() => {
+  .then(async () => {
     logger.info('✅ Database connection successful');
+    await ensureMinimalOffers();
   })
   .catch((error) => {
     logger.warn('⚠️ Failed to connect to database on startup:', error.message);
@@ -442,6 +469,158 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Healthcheck: verifies API and database connectivity
+app.get('/api/health', async (req: Request, res: Response) => {
+    try {
+        // Simple DB ping and entity counts
+        await prisma.$queryRaw`SELECT 1`;
+        const gamesCount = await prisma.game.count();
+        const offersCount = await prisma.offer.count();
+        const usersCount = await prisma.user.count();
+        res.json({ ok: true, database: true, counts: { games: gamesCount, offers: offersCount, users: usersCount } });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, database: false, error: error?.message || String(error) });
+    }
+});
+
+// Env check: reports presence (not values) of critical variables
+app.get('/api/health/env', (req: Request, res: Response) => {
+    const present = (name: string) => Boolean(process.env[name]);
+    res.json({
+        ok: true,
+        env: {
+            DATABASE_URL: present('DATABASE_URL'),
+            CLIENT_URL: present('CLIENT_URL'),
+            WEB_APP_URL: present('WEB_APP_URL'),
+            VITE_API_URL: present('VITE_API_URL'),
+            BOT_TOKEN: present('BOT_TOKEN'),
+            ADMIN_SECRET: present('ADMIN_SECRET'),
+        }
+    });
+});
+
+// Quick seed: заполняет БД реальными играми и офферами
+app.post('/api/seed/quick', async (req: Request, res: Response) => {
+    const providedSecret = (req.headers['x-admin-secret'] as string) || (req.query.secret as string) || (req.body as any)?.secret;
+    if (!ADMIN_SECRET || providedSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+    try {
+        const { execSync } = require('child_process');
+        const output = execSync('node scripts/seed-games.js', { 
+            cwd: __dirname,
+            encoding: 'utf-8' 
+        });
+        
+        const gamesCount = await prisma.game.count();
+        const offersCount = await prisma.offer.count();
+        
+        res.json({ 
+            ok: true, 
+            message: 'Database seeded successfully',
+            output,
+            counts: { games: gamesCount, offers: offersCount }
+        });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
+});
+
+// Minimal seed: creates demo Game and Offer if not exist (protected)
+app.post('/api/seed/minimal', async (req: Request, res: Response) => {
+    const providedSecret = (req.headers['x-admin-secret'] as string) || (req.query.secret as string) || (req.body as any)?.secret;
+    if (!ADMIN_SECRET || providedSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        let game = await prisma.game.findFirst();
+        if (!game) {
+            game = await prisma.game.create({
+                data: {
+                    title: 'Demo Game',
+                    imageUrl: 'https://via.placeholder.com/800x400?text=Demo+Game',
+                    gifUrl: process.env.DEFAULT_GIF_URL || 'https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif',
+                    appleStoreUrl: process.env.DEFAULT_APP_STORE_URL || 'https://www.apple.com/app-store/',
+                    googlePlayUrl: process.env.DEFAULT_GOOGLE_PLAY_URL || 'https://play.google.com',
+                    trailerUrl: 'https://www.youtube.com/',
+                    hasDiscount: false,
+                    isActual: true,
+                    isEnabled: true,
+                }
+            });
+        }
+        const existingOffer = await prisma.offer.findFirst({ where: { gameId: game.id } });
+        if (!existingOffer) {
+            await prisma.offer.create({
+                data: {
+                    title: 'Starter Pack',
+                    imageUrl: game.imageUrl,
+                    priceRUB: 100,
+                    priceUSDT: 1,
+                    isEnabled: true,
+                    game: { connect: { id: game.id } }
+                }
+            });
+        }
+        const counts = {
+            games: await prisma.game.count(),
+            offers: await prisma.offer.count(),
+            users: await prisma.user.count(),
+        };
+        res.json({ ok: true, seeded: true, counts });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
+});
+
+// Seed offers for a specific game (protected by ADMIN_SECRET)
+async function seedOfferForGame(gameId: number) {
+    const game = await prisma.game.findUnique({ where: { id: gameId } });
+    if (!game) throw new Error(`Game id=${gameId} not found`);
+    const existingOffer = await prisma.offer.findFirst({ where: { gameId } });
+    if (existingOffer) return existingOffer;
+    return prisma.offer.create({
+        data: {
+            title: 'Starter Pack',
+            imageUrl: game.imageUrl,
+            priceRUB: 199,
+            priceUSDT: 2,
+            isEnabled: true,
+            game: { connect: { id: gameId } }
+        }
+    });
+}
+
+app.post('/api/seed/offers/:gameId', async (req: Request, res: Response) => {
+    const providedSecret = (req.headers['x-admin-secret'] as string) || (req.query.secret as string) || (req.body as any)?.secret;
+    if (!ADMIN_SECRET || providedSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+    try {
+        const gameId = Number(req.params.gameId);
+        const offer = await seedOfferForGame(gameId);
+        res.json({ ok: true, offer });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
+});
+
+// Convenience GET alias for quick testing
+app.get('/api/seed/offers/:gameId', async (req: Request, res: Response) => {
+    const providedSecret = (req.query.secret as string) || '';
+    if (!ADMIN_SECRET || providedSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+    try {
+        const gameId = Number(req.params.gameId);
+        const offer = await seedOfferForGame(gameId);
+        res.json({ ok: true, offer });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
+});
 
 if (process.env.NODE_ENV === 'production') {
     // клиентская часть

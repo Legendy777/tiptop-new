@@ -84,7 +84,7 @@ export const fetchGame = createAsyncThunk('games/fetchGame', async (gameId: numb
 });
 
 interface IGame {
-  _id: number;
+  id: number;
   title: string;
   imageUrl: string;
   gifUrl: string;
@@ -130,7 +130,7 @@ const gamesSlice = createSlice({
       })
       .addCase(fetchGames.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload as string;
       });
     builder
       .addCase(searchGames.pending, (state) => {
@@ -142,7 +142,7 @@ const gamesSlice = createSlice({
       })
       .addCase(searchGames.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload as string;
       });
     builder
       .addCase(fetchGame.pending, (state) => {
@@ -154,7 +154,7 @@ const gamesSlice = createSlice({
       })
       .addCase(fetchGame.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload as string;
       });
     builder
         .addCase(fetchActiveGames.pending, (state) => {
@@ -164,10 +164,10 @@ const gamesSlice = createSlice({
           state.loading = false;
           state.games = action.payload;
         })
-        .addCase(fetchActiveGames.rejected, (state, action) => {
-          state.loading = false;
-          state.error = action.error.message;
-        });
+      .addCase(fetchActiveGames.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
     builder
         .addCase(fetchDiscountedGames.pending, (state) => {
           state.loading = true;
@@ -176,10 +176,10 @@ const gamesSlice = createSlice({
           state.loading = false;
           state.games = action.payload;
         })
-        .addCase(fetchDiscountedGames.rejected, (state, action) => {
-          state.loading = false;
-          state.error = action.error.message;
-        });
+      .addCase(fetchDiscountedGames.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   }
 });
 

@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axiosInstance from '../../api/axiosInstance.ts';
 
 interface IOffer {
-  _id: number;
+  id: number;
   gameId: number;
   title: string;
   imageUrl: string;
@@ -92,7 +92,7 @@ const offersSlice = createSlice({
       .addCase(fetchOffers.rejected, (state, action) => {
         state.loading = false;
         state.offers = [];
-        state.error = action.error.message;
+        state.error = action.payload as string;
       });
     builder
       .addCase(fetchOffer.pending, (state) => {
@@ -105,7 +105,7 @@ const offersSlice = createSlice({
       })
       .addCase(fetchOffer.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message;
+        state.error = action.payload as string;
       });
   }
 });

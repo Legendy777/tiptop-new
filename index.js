@@ -146,6 +146,9 @@ async function ensureBuilt(name, indexPath, cwd) {
   // Собираем SPA если нужно
   await ensureBuilt('Client', path.join(__dirname, 'client', 'dist', 'index.html'), clientCwd);
   await ensureBuilt('Admin', path.join(__dirname, 'admin', 'dist', 'index.html'), adminCwd);
+  // Устанавливаем зависимости сервера (включая dev), затем собираем
+  await runTask('Server: npm ci', serverCwd, 'npm', ['ci', '--include=dev']);
+  await runTask('Server: build', serverCwd, 'npm', ['run', 'build']);
 
   // Миграции БД только если не localhost
   if (process.env.DATABASE_URL && !/localhost|127\.0\.0\.1/i.test(process.env.DATABASE_URL)) {

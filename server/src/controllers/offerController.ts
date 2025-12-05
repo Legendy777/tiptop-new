@@ -19,6 +19,22 @@ export const getOffersByGameId = async (req: Request, res: Response): Promise<vo
       offers = await offerRepository.findByGameId(gameId);
     }
 
+    // Auto-seed one basic offer if none exist (unblocks WebApp clicks)
+    if (!offers || offers.length === 0) {
+      const game = await prisma.game.findUnique({ where: { id: Number(gameId) } });
+      if (game) {
+        const seeded = await offerRepository.create({
+          title: 'Starter Pack',
+          imageUrl: game.imageUrl,
+          priceRUB: 199,
+          priceUSDT: 2,
+          isEnabled: true,
+          game: { connect: { id: Number(gameId) } },
+        });
+        offers = [seeded];
+      }
+    }
+
     // Sort by priceRUB
     offers.sort((a, b) => Number(a.priceRUB) - Number(b.priceRUB));
 

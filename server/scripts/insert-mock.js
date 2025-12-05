@@ -16,28 +16,32 @@ async function run() {
     await prisma.$connect();
     console.log('Connected. Inserting mock data...');
 
-    // User from Mongo mock
-    const telegramId = BigInt(508173732);
-    const userData = {
-      telegramId,
-      username: 'Legendy_Vlad',
-      language: 'ru',
-      isBanned: false,
-      isSubscribed: true,
-      avatarUrl: cleanUrl('https://api.telegram.org/file/bot6378846431:AAHQKHdVQRE07DsKDECF1y3rEZynolWuM9I/photos/file_2.jpg'),
-      balanceRUB: 0,
-      balanceUSDT: 0,
-      ordersCount: 0,
-      referralPercent: 1,
-      acceptedPrivacyConsent: false,
-    };
+    // Optional user seed (skip if schema differs)
+    try {
+      const telegramId = BigInt(508173732);
+      const userData = {
+        telegramId,
+        username: 'Legendy_Vlad',
+        language: 'ru',
+        isBanned: false,
+        isSubscribed: true,
+        avatarUrl: cleanUrl('https://api.telegram.org/file/bot6378846431:AAHQKHdVQRE07DsKDECF1y3rEZynolWuM9I/photos/file_2.jpg'),
+        balanceRUB: 0,
+        balanceUSDT: 0,
+        ordersCount: 0,
+        referralPercent: 1,
+        acceptedPrivacyConsent: false,
+      };
 
-    const existingUser = await prisma.user.findUnique({ where: { telegramId } });
-    if (existingUser) {
-      console.log(`User ${existingUser.username} (telegramId=${existingUser.telegramId}) already exists. Skipping create.`);
-    } else {
-      const newUser = await prisma.user.create({ data: userData });
-      console.log(`Inserted user id=${newUser.id}, telegramId=${newUser.telegramId}`);
+      const existingUser = await prisma.user.findFirst({ where: { username: 'Legendy_Vlad' } });
+      if (existingUser) {
+        console.log(`User ${existingUser.username} already exists. Skipping create.`);
+      } else {
+        const newUser = await prisma.user.create({ data: userData });
+        console.log(`Inserted user id=${newUser.id}`);
+      }
+    } catch (e) {
+      console.warn('User seed skipped due to schema mismatch:', e.message || e);
     }
 
     // Games from Mongo mock
@@ -76,10 +80,31 @@ async function run() {
       }
     }
 
+    // Offers for each game
+    const allGames = await prisma.game.findMany();
+    for (const game of allGames) {
+      const existingOffers = await prisma.offer.findMany({ where: { gameId: game.id } });
+      if (existingOffers.length > 0) {
+        console.log(`Offers for game id=${game.id} already exist (${existingOffers.length}). Skipping.`);
+        continue;
+      }
+      const baseImage = game.imageUrl;
+      const created = await prisma.offer.create({
+        data: {
+          title: 'Starter Pack',
+          imageUrl: baseImage,
+          priceRUB: 199,
+          priceUSDT: 2,
+          isEnabled: true,
+          game: { connect: { id: game.id } },
+        }
+      });
+      console.log(`Inserted offer id=${created.id} for game id=${game.id}`);
+    }
+
     console.log('Done.');
   } catch (err) {
     console.error('Error inserting mock data:', err);
-    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
   }

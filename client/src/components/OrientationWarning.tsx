@@ -7,7 +7,17 @@ const OrientationWarning = () => {
     const { t } = useTranslation();
 
     const checkOrientation = () => {
-        setIsLandscape(window.innerWidth > window.innerHeight);
+        const inTelegram = typeof window !== 'undefined' && !!window.Telegram?.WebApp;
+        if (inTelegram) {
+            setIsLandscape(false);
+            return;
+        }
+        const mq = typeof window.matchMedia === 'function' ? window.matchMedia('(orientation: landscape)') : null;
+        if (mq) {
+            setIsLandscape(mq.matches);
+        } else {
+            setIsLandscape(window.innerWidth > window.innerHeight);
+        }
     };
 
     useEffect(() => {

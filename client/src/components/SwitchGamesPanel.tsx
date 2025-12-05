@@ -47,7 +47,7 @@ const SwitchGamesPanel = () => {
   const getNextOfferId = () => {
     const currentOfferId = Number(path[3]);
     const sortedOffers = [...offers]
-        .map(o => o._id)
+        .map(o => o.id)
         .filter(id => id > currentOfferId)
         .sort((a, b) => a - b);
 
@@ -57,7 +57,7 @@ const SwitchGamesPanel = () => {
   const getPrevOfferId = () => {
     const currentOfferId = Number(path[3]);
     const sortedOffers = [...offers]
-        .map(o => o._id)
+        .map(o => o.id)
         .filter(id => id < currentOfferId)
         .sort((a, b) => b - a);
 
@@ -65,11 +65,11 @@ const SwitchGamesPanel = () => {
   };
 
   const getMinOfferId = () => {
-    return offers.length > 0 ? Math.min(...offers.map(o => o._id)) : null;
+    return offers.length > 0 ? Math.min(...offers.map(o => o.id)) : null;
   };
 
   const getMaxOfferId = () => {
-    return offers.length > 0 ? Math.max(...offers.map(o => o._id)) : null;
+    return offers.length > 0 ? Math.max(...offers.map(o => o.id)) : null;
   };
 
   const nextGame = async () => {

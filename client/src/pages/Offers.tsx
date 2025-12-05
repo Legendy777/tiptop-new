@@ -18,18 +18,18 @@ const Offer = () => {
   useEffect(() => {
     dispatch(fetchOffers({ gameId: Number(gameId), isEnabled: true }));
 
-    if ((!gameData && gameId) || gameData?.game?._id !== Number(gameId)) {
+    if ((!gameData && gameId) || gameData?.game?.id !== Number(gameId)) {
       // Fetch game data if not already available
       dispatch(fetchGame(Number(gameId)));
     }
   }, [gameId, dispatch]);
 
-  if (loading) return <p>{t('offers.loading')}</p>;
-  if (error) return <p>{t('offers.error', { error: error })}</p>;
-  // if (!offers || offers.length === 0) return <p className='text-white pt-1'>{t('offers.noProducts')}</p>;
+  if (loading) return <p className='text-white pt-1'>{t('offers.loading')}</p>;
+  if (error) return <p className='text-white pt-1'>{t('offers.error', { error })}</p>;
+  if (!offers || offers.length === 0) return <p className='text-white pt-1'>{t('offers.noProducts')}</p>;
 
-  if (gameData?.loading) return <p>{t('home.loading')}</p>;
-  if (gameData?.error) return <p>{t('home.error', { error: error })}</p>;
+  if (gameData?.loading) return <p className='text-white pt-1'>{t('home.loading')}</p>;
+  if (gameData?.error) return <p className='text-white pt-1'>{t('home.error', { error: gameData.error })}</p>;
   if (!gameData?.game) return <p className='text-white pt-1'>{t('home.noGame')}</p>;
 
   const redirectToAppStore = () => {
@@ -74,7 +74,7 @@ const Offer = () => {
         <div className="">
           <div className="grid grid-cols-2 gap-2.5 w-full text-white">
             {offers.map((offer, index) => (
-                <div onClick={() => navigate(`/games/${gameId}/offers/${offer._id}/order`)} key={index} className="bg-gray-800 rounded-lg shadow-md box-border cursor-pointer border-2  border-[#27282C]">
+                <div onClick={() => navigate(`/games/${gameId}/offers/${offer.id}/order`)} key={index} className="bg-gray-800 rounded-lg shadow-md box-border cursor-pointer border-2  border-[#27282C]">
                   <img src={offer.imageUrl} alt={offer.title} className="w-[100%] aspect-square object-center object-cover rounded-tl-[8px] rounded-tr-[8px]" />
                   <div className="flex flex-col items-center justify-between gap-2 gap-y-0 flex-wrap bg-[#1A1B1E] py-1 px-2 rounded-bl-lg rounded-br-lg">
                     <h2 className="text-sm pb-0.5 pl-1 max-w-full pr-0.5 font-normal text-[#fff] whitespace-nowrap overflow-hidden">
