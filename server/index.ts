@@ -527,6 +527,33 @@ app.post('/api/seed/quick', async (req: Request, res: Response) => {
     }
 });
 
+// GET alias for convenience
+app.get('/api/seed/quick', async (req: Request, res: Response) => {
+    const providedSecret = (req.query.secret as string) || '';
+    if (!ADMIN_SECRET || providedSecret !== ADMIN_SECRET) {
+        return res.status(403).json({ ok: false, message: 'Forbidden' });
+    }
+    try {
+        const { execSync } = require('child_process');
+        const output = execSync('node scripts/seed-games.js', { 
+            cwd: __dirname,
+            encoding: 'utf-8' 
+        });
+        
+        const gamesCount = await prisma.game.count();
+        const offersCount = await prisma.offer.count();
+        
+        res.json({ 
+            ok: true, 
+            message: 'Database seeded successfully',
+            output,
+            counts: { games: gamesCount, offers: offersCount }
+        });
+    } catch (error: any) {
+        res.status(500).json({ ok: false, error: error?.message || String(error) });
+    }
+});
+
 // Minimal seed: creates demo Game and Offer if not exist (protected)
 app.post('/api/seed/minimal', async (req: Request, res: Response) => {
     const providedSecret = (req.headers['x-admin-secret'] as string) || (req.query.secret as string) || (req.body as any)?.secret;
