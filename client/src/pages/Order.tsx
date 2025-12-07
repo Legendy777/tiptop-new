@@ -41,6 +41,22 @@ const Order = () => {
     }
   };
 
+  const handleRubOrder = async () => {
+    const paymentData = {
+      gameName: game?.title ?? "Unknown Game",
+      offerName: offers?.offer?.title ?? "Unknown Offer",
+      price: offers?.offer?.priceRUB ?? 0,
+    };
+
+    const response = await dispatch(createCryptoPayment(paymentData));
+
+    if (createCryptoPayment.fulfilled.match(response)) {
+      window.open(response.payload.invoice.payUrl, "_blank");
+    } else {
+      console.error("Payment creation failed", response);
+    }
+  };
+
   return (
     <div className="text-white flex flex-col gap-1 max-w-[28rem] w-full h-full overflow-hidden pt-2">
       <div className="flex flex-col w-full items-center justify-start px-2">
@@ -51,12 +67,19 @@ const Order = () => {
         {/*<p>{t('order.text')}</p>*/}
         <div className="flex flex-col pt-2 max-[350px]:pt-1 gap-2 max-[350px]:gap-1.5 w-full">
           <div className="flex flex-row gap-2 max-[350px]:gap-1.5 w-full">
-            <button onClick={handleOrder} className="flex flex-row w-full items-center justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border border-[#27282C] cursor-pointer">
-              <div className="flex items-center gap-2">
-                <img src="/USDT.png" alt="USDT" className="w-[20px] max-[350px]:w-[18px] object-contain" />
+            <button onClick={handleOrder} className="flex flex-row w-[50%] gap-2 justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
+              <div className="flex flex-row gap-2">
+                <img src="/USDT.png" alt="usd" className="w-[20px] max-[350px]:w-[18px] object-contain rounded-[10px] text-[#8F96A3]" />
                 <span className="max-[350px]:text-sm">{offers.offer.priceUSDT}</span>
               </div>
               <span className="max-[350px]:text-sm">USDT</span>
+            </button>
+            <button onClick={handleRubOrder} className="flex flex-row w-[50%] gap-2 justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
+              <div className="flex flex-row gap-2">
+                <img src="/RUB.png" alt="usd" className="w-[20px] max-[350px]:w-[18px] object-contain rounded-[10px] text-[#8F96A3]" />
+                <span className="max-[350px]:text-sm">{offers.offer.priceRUB}</span>
+              </div>
+              <span className="max-[350px]:text-sm">RUB</span>
             </button>
           </div>
           <button onClick={() => navigate(-1)} className="w-full text-center px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border border-[#27282C] cursor-pointer max-[350px]:text-sm">
