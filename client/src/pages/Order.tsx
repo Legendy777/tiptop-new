@@ -26,7 +26,6 @@ const Order = () => {
   if (!offers?.offer) return <p>No offer data available</p>;
 
   const handleOrder = async () => {
-    alert("USDT button clicked!");
     const paymentData = {
       gameName: game?.title ?? "Unknown Game",
       offerName: offers?.offer?.title ?? "Unknown Offer",
