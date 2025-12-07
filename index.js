@@ -191,3 +191,6 @@ process.on('SIGTERM', () => {
   processes.forEach(({ proc }) => proc.kill('SIGTERM'));
   process.exit(0);
 });
+
+// Keep the main process alive so the container doesn't exit
+setInterval(() => {}, 1 << 30);
