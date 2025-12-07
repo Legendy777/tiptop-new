@@ -67,23 +67,16 @@ const Order = () => {
         {/*<p>{t('order.text')}</p>*/}
         <div className="flex flex-col pt-2 max-[350px]:pt-1 gap-2 max-[350px]:gap-1.5 w-full">
           <div className="flex flex-row gap-2 max-[350px]:gap-1.5 w-full">
-            <button onClick={handleOrder} className="flex flex-row w-[50%] gap-2 justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
+            <button onClick={handleOrder} className="flex flex-row w-full gap-2 justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
               <div className="flex flex-row gap-2">
                 <img src="/USDT.png" alt="usd" className="w-[20px] max-[350px]:w-[18px] object-contain rounded-[10px] text-[#8F96A3]" />
                 <span className="max-[350px]:text-sm">{offers.offer.priceUSDT}</span>
               </div>
               <span className="max-[350px]:text-sm">USDT</span>
             </button>
-            {<button onClick={handleRubOrder} className="flex flex-row w-[50%] gap-2 justify-between px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
-              <div className="flex flex-row gap-2">
-                <img src="/RUB.png" alt="usd" className="w-[20px] max-[350px]:w-[18px] object-contain rounded-[10px] text-[#8F96A3]" />
-                <span className="max-[350px]:text-sm">{offers.offer.priceRUB}</span>
-              </div>
-              <span className="max-[350px]:text-sm">RUB</span>
-            </button>}
           </div>
           <div className="flex flex-row gap-2 justify-center px-4 py-2 max-[350px]:py-1.5 rounded-lg bg-[#1A1B1E] border  border-[#27282C] cursor-pointer">
-            <button className="cursor-pointer max-[350px]:text-sm" onClick={() => navigate(`/offers/${offers.offer?.gameId}`)}>{t('order.cancel')}</button>
+            <button className="cursor-pointer max-[350px]:text-sm" onClick={() => navigate(-1)}>{t('order.cancel')}</button>
           </div>
         </div>
       </div>
