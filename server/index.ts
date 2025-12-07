@@ -667,6 +667,7 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
+// Force a new Railway deployment to clear cache issues.
 app.use((req: Request, res: Response) => {
     res.status(404).json({ success: false, message: 'Route not found' });
 });
