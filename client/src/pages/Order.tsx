@@ -37,7 +37,7 @@ const Order = () => {
     if (createCryptoPayment.fulfilled.match(response)) {
       window.open(response.payload.invoice.miniAppInvoiceUrl, "_blank");
     } else {
-      alert('Payment creation failed: ' + JSON.stringify(response.payload || response.error));
+      console.error("Payment creation failed", response);
     }
   };
 
