@@ -124,11 +124,18 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
         miniAppInvoiceUrl: invoice.mini_app_invoice_url,
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error("Error creating crypto invoice", {
-      context: { stack: error },
+      context: { 
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      },
     });
-    return res.status(500).json({ error: "Failed to create invoice" });
+    return res.status(500).json({ 
+      error: "Failed to create invoice",
+      details: error.message 
+    });
   }
 };
 
