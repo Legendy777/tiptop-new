@@ -235,22 +235,33 @@ export const createRubInvoice = async (req: Request, res: Response) => {
     };
 
     try {
-      invoice = await axios.post("https://payment.blvckpay.com/sbp/order/create", {
+      const response = await axios.post("https://payment.blvckpay.com/sbp/order/create", {
         "amount": amountToPay,
         "signature": "b28fa2bb-27dd-47a7-a52d-1448ef716d90",
-      })
-    } catch (error) {
-      logger.error("Error creating rub invoice", {
-        context: { stack: error },
       });
-      return res.status(500).json({ error: "Failed to create invoice" });
+      invoice = response.data;
+    } catch (error: any) {
+      logger.error("Error creating rub invoice from BLVCKPAY", {
+        context: {
+          message: error.message,
+          stack: error.stack,
+          response: error.response?.data,
+        },
+      });
+      return res.status(500).json({
+        error: "Failed to create invoice",
+        details: "Failed to create payment from external service",
+      });
     }
 
     if (!invoice || !invoice.urlv2) {
-      logger.error("Crypto invoice creation failed or missing payment URL", {
+      logger.error("Rub invoice creation failed or missing payment URL", {
         context: { userId, payUrl: invoice?.urlv2, offerId: offerIdValue, stack: new Error("Invoice creation failed").stack },
       });
-      return res.status(500).json({ error: "Invoice creation failed" });
+      return res.status(500).json({
+        error: "Invoice creation failed",
+        details: "Missing payment URL from external service",
+      });
     }
 
     logger.info("Invoice created successfully", {
@@ -289,10 +300,17 @@ export const createRubInvoice = async (req: Request, res: Response) => {
         payUrl: invoice.urlv2,
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error("Error creating rub invoice", {
-      context: { stack: error },
+      context: { 
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data
+      },
     });
-    return res.status(500).json({ error: "Failed to create invoice" });
+    return res.status(500).json({ 
+      error: "Failed to create invoice",
+      details: error.message 
+    });
   }
 };
