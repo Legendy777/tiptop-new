@@ -37,7 +37,14 @@ export class UserRepository {
 
   async create(data: Prisma.UserCreateInput) {
     try {
-      return await prisma.user.create({ data });
+      return await prisma.user.create({
+        data,
+        include: {
+          chat: true,
+          referrals: true,
+          referredBy: true,
+        },
+      });
     } catch (error) {
       throw new DatabaseError('Failed to create user', error);
     }
