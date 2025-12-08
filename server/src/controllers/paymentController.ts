@@ -12,7 +12,7 @@ const cryptoPay = new CryptoPay(process.env.CRYPTOPAY_API_KEY!);
 
 export const createCryptoInvoice = async (req: Request, res: Response) => {
   try {
-    const userId = req.telegramUser?.id;
+    const userId = req.user?.id;
     const { gameName, offerName, price } = req.body;
 
     // Validate price
@@ -141,7 +141,7 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
 
 export const getAllByMe = async (req: Request, res: Response) => {
   try {
-    const userId = req.telegramUser?.id;
+    const userId = req.user?.id;
 
     if (!userId || userId <= 0) {
       logger.error("Validation data for fetching payments failed: Invalid userId provided", {
@@ -171,7 +171,7 @@ export const getAllByMe = async (req: Request, res: Response) => {
 
 export const createRubInvoice = async (req: Request, res: Response) => {
   try {
-    const userId = req.telegramUser?.id;
+    const userId = req.user?.id;
     const { gameName, offerName, price } = req.body;
 
     // Validate price

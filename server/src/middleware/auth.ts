@@ -5,6 +5,8 @@ import console from "node:console";
 import * as process from "node:process";
 import * as path from "node:path";
 import { isValid } from '@telegram-apps/init-data-node';
+import { userRepository } from '../db';
+import { User } from '@prisma/client';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 const TELEGRAM_BOT_TOKEN = process.env.BOT_TOKEN || '';
@@ -24,14 +26,8 @@ interface TelegramUser {
 
 declare module 'express-serve-static-core' {
   interface Request {
-    telegramUser?: {
-      id: number;
-      first_name: string;
-      last_name?: string;
-      username?: string;
-      language_code?: string;
-      photo_url?: string;
-    };
+    telegramUser?: TelegramUser;
+    user?: User;
   }
 }
 
@@ -46,7 +42,7 @@ function parseInitData(initData: string): TelegramUser | null {
   }
 }
 
-export const authenticateUser = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const initData = req.headers['x-telegram-initdata'] as string;
     
@@ -64,14 +60,32 @@ export const authenticateUser = (req: Request, res: Response, next: NextFunction
       }
     }
 
-    const user = parseInitData(initData);
-    if (!user) {
+    const telegramUser = parseInitData(initData);
+    if (!telegramUser) {
       return res.status(401).json({ message: 'Invalid user data' });
     }
 
-    logger.info('Authentication successful', { context: { userId: user.id } });
+    req.telegramUser = telegramUser;
 
-    req.telegramUser = user;
+    let user = await userRepository.findByTelegramId(telegramUser.id);
+
+    if (!user) {
+      user = await userRepository.create({
+        telegramId: BigInt(telegramUser.id),
+        username: telegramUser.username || `user_${telegramUser.id}`,
+        language: telegramUser.language_code || 'ru',
+        avatarUrl: telegramUser.photo_url || '',
+      });
+    }
+
+    if (!user) {
+      return res.status(500).json({ message: 'Failed to retrieve or create user' });
+    }
+
+    req.user = user;
+
+    logger.info('Authentication successful', { context: { userId: user.id, telegramId: user.telegramId } });
+
     next();
   } catch (error) {
     console.error('Authentication error:', error);
