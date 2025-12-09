@@ -186,7 +186,6 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
           logger.warn('User has no telegramId, skipping Telegram notification', { context: { userId: user?.id } });
       }
     }
-    }
 
     res.status(200).json({ success: true });
     logger.info('Webhook processed successfully');
@@ -378,4 +377,4 @@ export const handleRubWebhook = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
-
+
