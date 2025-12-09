@@ -20,7 +20,7 @@ const logFormat = winston.format.combine(
       context: meta.context || {},
       ...(stack ? { stack } : {})
     };
-    return JSON.stringify(log);
+    return JSON.stringify(log, (_, v) => typeof v === 'bigint' ? v.toString() : v);
   })
 );
 

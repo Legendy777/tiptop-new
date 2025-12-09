@@ -67,7 +67,7 @@ export const authenticateUser = async (req: Request, res: Response, next: NextFu
 
     req.telegramUser = telegramUser;
 
-    let user = await userRepository.findByTelegramId(telegramUser.id);
+    let user: any = await userRepository.findByTelegramId(telegramUser.id);
 
     if (!user) {
       user = await userRepository.create({
