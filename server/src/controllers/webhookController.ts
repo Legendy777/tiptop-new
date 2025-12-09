@@ -56,7 +56,7 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
 
       // MONGO BACKUP: const payment = await Payment.findOne({ externalId: invoice_id });
       const payment = await prisma.payment.findFirst({
-        where: { externalId: invoice_id }
+        where: { externalId: String(invoice_id) }
       });
 
       if (!payment) {
@@ -103,7 +103,7 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
       }
 
       // MONGO BACKUP: await User.findByIdAndUpdate(payment.userId, { $inc: { ordersCount: 1 } }, { new: true });
-      await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id: payment.userId },
         data: { ordersCount: { increment: 1 } }
       });
@@ -162,20 +162,30 @@ export const handleCryptoWebhook = async (req: Request, res: Response) => {
       const botToken = process.env.BOT_TOKEN;
       const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
-      await axios.post(url, {
-        chat_id: order.userId,
-        text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order.id}.`,
-        reply_markup: {
-          inline_keyboard: [[
-            {
-              text: "💬 Чат",
-              web_app: {
-                url: process.env.CLIENT_URL + "/chat"
-              }
-            }
-          ]]
-        }
-      });
+      if (user && user.telegramId) {
+          try {
+              await axios.post(url, {
+                  chat_id: user.telegramId.toString(),
+                  text: `Пожалуйста, перейдите в чат для заполнения данных о заказе №${order.id}.`,
+                  reply_markup: {
+                      inline_keyboard: [[
+                          {
+                              text: "💬 Чат",
+                              web_app: {
+                                  url: process.env.CLIENT_URL + "/chat"
+                              }
+                          }
+                      ]]
+                  }
+              });
+              logger.info('Telegram notification sent', { context: { userId: user.id, telegramId: user.telegramId.toString() } });
+          } catch (tgError) {
+              logger.error('Failed to send Telegram notification', { context: { error: tgError } });
+          }
+      } else {
+          logger.warn('User has no telegramId, skipping Telegram notification', { context: { userId: user?.id } });
+      }
+    }
     }
 
     res.status(200).json({ success: true });
