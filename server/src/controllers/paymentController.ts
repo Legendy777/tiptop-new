@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { CryptoPay } from '@foile/crypto-pay-api';
+// import { CryptoPay } from '@foile/crypto-pay-api';
 import { logger } from '../config/logger';
 // MONGO BACKUP: import Payment from '../models/Payment';
 // MONGO BACKUP: import Game from '../models/Game';
@@ -7,8 +7,9 @@ import { logger } from '../config/logger';
 import axios from "axios";
 import { prisma } from '../db/client';
 import { paymentRepository } from '../db';
+import { DatabaseError } from '../db/error';
 
-const cryptoPay = new CryptoPay(process.env.CRYPTOPAY_API_KEY!);
+// const cryptoPay = new CryptoPay(process.env.CRYPTOPAY_API_KEY!);
 
 export const createCryptoInvoice = async (req: Request, res: Response) => {
   try {
@@ -71,14 +72,50 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
       context: { userId, offerId: offerIdValue },
     });
 
-    // Create invoice using CryptoPay API
-    const invoice = await cryptoPay.createInvoice("USDT", amountToPay, {
-      hidden_message: hiddenMessage,
-      allow_comments: true,
-      allow_anonymous: false,
-      paid_btn_name: "openBot",
-      paid_btn_url: `https://t.me/TipTop999_bot`,
-    });
+    // Create invoice using CryptoPay API (Direct Axios Call)
+    const cryptoPayToken = process.env.CRYPTOPAY_API_KEY;
+    if (!cryptoPayToken) {
+        logger.error("CRYPTOPAY_API_KEY is not defined in environment variables");
+        return res.status(500).json({ error: "Internal Server Error", details: "Payment service configuration error" });
+    }
+
+    let invoice;
+    try {
+        const response = await axios.post(
+            'https://pay.crypt.bot/api/createInvoice',
+            {
+                asset: 'USDT',
+                amount: amountToPay.toString(),
+                hidden_message: hiddenMessage,
+                allow_comments: true,
+                allow_anonymous: false,
+                paid_btn_name: 'openBot',
+                paid_btn_url: `https://t.me/TipTop999_bot`,
+            },
+            {
+                headers: {
+                    'Crypto-Pay-API-Token': cryptoPayToken,
+                },
+            }
+        );
+        
+        if (response.data && response.data.ok) {
+            invoice = response.data.result;
+        } else {
+            logger.error("Crypto Pay API returned error", {
+                context: { response: response.data }
+            });
+            throw new Error(response.data?.error?.name || "Unknown Crypto Pay API error");
+        }
+    } catch (apiError: any) {
+         logger.error("Crypto Pay API request failed", {
+            context: { 
+                message: apiError.message,
+                response: apiError.response?.data 
+            }
+        });
+        throw new Error(apiError.response?.data?.error?.name || apiError.message);
+    }
 
     if (!invoice || !invoice.pay_url) {
       logger.error("Crypto invoice creation failed or missing payment URL", {
@@ -103,7 +140,7 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
     // MONGO BACKUP: await payment.save();
 
     const payment = await paymentRepository.create({
-      externalId: invoice.invoice_id,
+      externalId: String(invoice.invoice_id),
       user: { connect: { id: userId } },
       offer: { connect: { id: offerIdValue } },
       amountToPay: amountToPay,
@@ -129,12 +166,19 @@ export const createCryptoInvoice = async (req: Request, res: Response) => {
       context: { 
         message: error.message,
         stack: error.stack,
-        response: error.response?.data
+        response: error.response?.data,
+        originalError: (error as DatabaseError).originalError
       },
     });
+    
+    let details = error.message;
+    if (error instanceof DatabaseError && error.originalError) {
+        details += ` - ${error.originalError.message || JSON.stringify(error.originalError)}`;
+    }
+
     return res.status(500).json({ 
       error: "Failed to create invoice",
-      details: error.message 
+      details: details
     });
   }
 };
