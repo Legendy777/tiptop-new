@@ -247,34 +247,11 @@ export async function handleCheckSubscription(ctx: Context) {
     if (isSubscribed) {
       await userService.updateSubscription(userId, { isSubscribed: true });
       await ctx.answerCbQuery(l.subscription.success);
-      errorHandler.logInfo(`User ${userId} successfully subscribed to channel`);
+      errorHandler.logInfo(`User ${userId} successfully subscribed to channel. Redirecting to language selection.`);
 
-      // Устанавливаем постоянную клавиатуру с переводом
-      const persistentKeyboard = messageService.createPersistentKeyboard(user.language);
-      await ctx.reply(l.messages.languageSelected, {
-        reply_markup: persistentKeyboard,
-      });
-
-      let messageSuccessfullyDeleted = false;
-      if (
-        (ctx.callbackQuery as any)?.message?.message_id &&
-        userMessageIds[userId.toString()] === (ctx.callbackQuery as any).message.message_id
-      ) {
-        try {
-          await ctx.deleteMessage(userMessageIds[userId.toString()]);
-          errorHandler.logInfo(`Successfully deleted message ${userMessageIds[userId.toString()]} in handleCheckSubscription for user ${userId}`);
-          delete userMessageIds[userId.toString()];
-          messageSuccessfullyDeleted = true;
-        } catch (e) {
-          errorHandler.logWarning(`Could not delete subscription message ${userMessageIds[userId.toString()]} for user ${userId}:`, e);
-        }
-      }
-
-      if (messageSuccessfullyDeleted) {
-        await showMainMenu(ctx, false);
-      } else {
-        await showMainMenu(ctx, true, messageId);
-      }
+      // Вместо прямого перехода в главное меню, показываем выбор языка
+      // Передаем true, так как мы только что проверили подписку
+      await showLanguageSelection(ctx, true);
     } else {
       await ctx.answerCbQuery(l.subscription.failed);
       await loggerMiddleware.logUserAction(ctx, 'subscription_check_failed', {});
@@ -435,7 +412,7 @@ export async function showMainMenu(ctx: Context, editMessage = true, messageIdTo
 
 
 
-async function showLanguageSelection(ctx: Context) {
+async function showLanguageSelection(ctx: Context, isAlreadySubscribed: boolean = false) {
   if (!ctx.from) return;
   const userId = ctx.from.id;
 
@@ -445,14 +422,17 @@ async function showLanguageSelection(ctx: Context) {
   const l = localization(currentLanguage);
 
   // 1) Всегда проверяем подписку на канал при /start
-  let isSubscribed = false;
-  try {
-    isSubscribed = await checkUserSubscription(ctx, userId.toString());
-    await loggerMiddleware.logUserAction(userId, 'subscription_check_on_start', { isSubscribed });
-    // Сохраняем актуальный статус подписки (best-effort)
-    await userService.updateSubscription(userId, { isSubscribed });
-  } catch (subErr) {
-    errorHandler.logWarning('Subscription check failed on /start:', subErr);
+  let isSubscribed = isAlreadySubscribed;
+  
+  if (!isSubscribed) {
+    try {
+      isSubscribed = await checkUserSubscription(ctx, userId.toString());
+      await loggerMiddleware.logUserAction(userId, 'subscription_check_on_start', { isSubscribed });
+      // Сохраняем актуальный статус подписки (best-effort)
+      await userService.updateSubscription(userId, { isSubscribed });
+    } catch (subErr) {
+      errorHandler.logWarning('Subscription check failed on /start:', subErr);
+    }
   }
 
   // Если НЕ подписан — показываем запрос подписки и выходим
