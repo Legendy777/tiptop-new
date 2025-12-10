@@ -150,6 +150,10 @@ async function ensureBuilt(name, indexPath, cwd) {
   await runTask('Server: npm ci', serverCwd, 'npm', ['ci', '--include=dev']);
   await runTask('Server: build', serverCwd, 'npm', ['run', 'build']);
 
+  // Устанавливаем зависимости бота (включая dev), затем собираем
+  await runTask('Bot: npm ci', botCwd, 'npm', ['ci', '--include=dev']);
+  await runTask('Bot: build', botCwd, 'npm', ['run', 'build']);
+
   // Миграции БД только если не localhost
   if (process.env.DATABASE_URL && !/localhost|127\.0\.0\.1/i.test(process.env.DATABASE_URL)) {
     console.log('🗄️ Инициализация базы данных...');
