@@ -154,7 +154,7 @@ export async function handleLanguageChange(ctx: Context, language: string) {
       }
       
       // Отправляем новое главное меню
-      await showMainMenu(ctx, false);
+      await showMainMenu(ctx, false, undefined, language);
       
       // Отвечаем на callback query после успешного обновления меню
       try {
@@ -265,7 +265,7 @@ export async function handleCheckSubscription(ctx: Context) {
   }
 }
 
-export async function showMainMenu(ctx: Context, editMessage = true, messageIdToEdit?: number) {
+export async function showMainMenu(ctx: Context, editMessage = true, messageIdToEdit?: number, forcedLanguage?: string) {
   if (!ctx.from || !ctx.chat?.id) {
     errorHandler.logWarning(`showMainMenu: Invalid context (from: ${ctx.from?.id}, chat: ${ctx.chat?.id})`);
     return;
@@ -286,8 +286,12 @@ export async function showMainMenu(ctx: Context, editMessage = true, messageIdTo
     const userId = ctx.from.id;
     const chatId = ctx.chat.id;
     // Получаем актуальные данные пользователя
-    const user = await userService.getUserById(userId);
-    const language = user ? user.language : 'ru';
+    let language = forcedLanguage;
+    if (!language) {
+      const user = await userService.getUserById(userId);
+      language = user ? user.language : 'ru';
+    }
+    
     const l = localization(language);
 
     const userIdStr = userId.toString();
