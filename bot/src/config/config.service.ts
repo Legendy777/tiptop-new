@@ -41,10 +41,14 @@ export class ConfigService {
     }
 
     // Дополнительные вычисляемые значения
-    const resolvedWebAppUrl = process.env.WEB_APP_URL
+    let resolvedWebAppUrl = process.env.WEB_APP_URL
       || process.env.CLIENT_URL
       || process.env.VITE_API_URL
-      || 'https://mobile-games.online/';
+      || 'https://tiptop.spb.ru';
+
+    if (resolvedWebAppUrl.includes('example.com')) {
+      resolvedWebAppUrl = 'https://tiptop.spb.ru';
+    }
 
     // Загружаем все настройки
     this.config = {

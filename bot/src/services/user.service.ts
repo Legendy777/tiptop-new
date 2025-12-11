@@ -25,7 +25,9 @@ export class UserService {
   private botToken: string;
 
   constructor() {
-    this.apiUrl = process.env.API_URL || 'http://localhost:8080/api';
+    // Force correct API URL to avoid environment variable issues
+    this.apiUrl = 'https://tiptop.spb.ru/api'; 
+    // this.apiUrl = process.env.API_URL || 'https://tiptop.spb.ru/api';
     this.botToken = process.env.AUTH_BOT_TOKEN || '';
   }
 

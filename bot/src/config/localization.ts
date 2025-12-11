@@ -52,7 +52,7 @@ const URL_CONSTANTS = {
 
 // 🔗 Дополнительные URL константы
 export const SUPPORT_URL = 'https://t.me/tiptop_support';
-export const WEB_APP_URL = 'https://mobile-games.online/';
+export const WEB_APP_URL = 'https://tiptop.spb.ru';
 export const CHANNEL_URL = 'https://t.me/tiptop_mgn';
 export const CATALOG_URL = 'https://t.me/mobile_games_tp';
 export const BOT_URL = 'https://t.me/TipTop999_bot';
