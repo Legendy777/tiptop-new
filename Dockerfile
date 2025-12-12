@@ -10,6 +10,14 @@ RUN npm ci
 # Копируем весь проект (включая server и bot)
 COPY . .
 
+# ==== Сборка клиента ====
+WORKDIR /app/client
+RUN npm ci && npm run build
+
+# ==== Сборка админки ====
+WORKDIR /app/admin
+RUN npm ci && npm run build
+
 # ==== Сборка сервера ====
 WORKDIR /app/server
 RUN npm ci && npm run build
